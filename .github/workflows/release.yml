@@ -1,0 +1,408 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v0.1.0)'
+        required: true
+        type: string
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # 创建 GitHub Release
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION=${{ steps.get_version.outputs.version }}
+          # 从 CHANGELOG.md 提取当前版本的变更记录
+          sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '1d;$d' > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "Release notes for $VERSION" > release_notes.md
+            echo "" >> release_notes.md
+            echo "See [CHANGELOG.md](CHANGELOG.md) for details." >> release_notes.md
+          fi
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: DG-LAB Controller ${{ steps.get_version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(steps.get_version.outputs.version, 'alpha') || contains(steps.get_version.outputs.version, 'beta') || contains(steps.get_version.outputs.version, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 构建 Tauri 应用 - Linux
+  build-tauri-linux:
+    name: Build Tauri (Linux)
+    needs: create-release
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: apps/dglab-gui-tauri/package-lock.json
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev libdbus-1-dev \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Install frontend dependencies
+        working-directory: apps/dglab-gui-tauri
+        run: npm ci
+
+      - name: Build Tauri app
+        working-directory: apps/dglab-gui-tauri
+        run: npm run tauri build
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+      - name: List build artifacts
+        working-directory: apps/dglab-gui-tauri
+        run: |
+          echo "=== AppImage ==="
+          ls -lh src-tauri/target/release/bundle/appimage/*.AppImage || true
+          echo "=== DEB ==="
+          ls -lh src-tauri/target/release/bundle/deb/*.deb || true
+
+      - name: Upload AppImage
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: apps/dglab-gui-tauri/src-tauri/target/release/bundle/appimage/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload DEB package
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: apps/dglab-gui-tauri/src-tauri/target/release/bundle/deb/*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 构建 Tauri 应用 - macOS
+  build-tauri-macos:
+    name: Build Tauri (macOS)
+    needs: create-release
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: apps/dglab-gui-tauri/package-lock.json
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install frontend dependencies
+        working-directory: apps/dglab-gui-tauri
+        run: npm ci
+
+      - name: Build Tauri app (Universal Binary)
+        working-directory: apps/dglab-gui-tauri
+        run: npm run tauri build -- --target universal-apple-darwin
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+      - name: List build artifacts
+        working-directory: apps/dglab-gui-tauri
+        run: |
+          echo "=== DMG ==="
+          ls -lh src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg || true
+          echo "=== App Bundle ==="
+          ls -lh src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app || true
+
+      - name: Upload DMG
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: apps/dglab-gui-tauri/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 构建 Tauri 应用 - Windows
+  build-tauri-windows:
+    name: Build Tauri (Windows)
+    needs: create-release
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: apps/dglab-gui-tauri/package-lock.json
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install frontend dependencies
+        working-directory: apps/dglab-gui-tauri
+        run: npm ci
+
+      - name: Build Tauri app
+        working-directory: apps/dglab-gui-tauri
+        run: npm run tauri build
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+      - name: List build artifacts
+        working-directory: apps/dglab-gui-tauri
+        run: |
+          echo "=== MSI ==="
+          dir src-tauri/target/release/bundle/msi/*.msi
+          echo "=== NSIS ==="
+          dir src-tauri/target/release/bundle/nsis/*.exe
+        shell: pwsh
+
+      - name: Upload MSI installer
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: apps/dglab-gui-tauri/src-tauri/target/release/bundle/msi/*.msi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload NSIS installer
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: apps/dglab-gui-tauri/src-tauri/target/release/bundle/nsis/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 构建 CLI 二进制 - Linux
+  build-cli-linux:
+    name: Build CLI (Linux)
+    needs: create-release
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev libdbus-1-dev
+
+      - name: Build CLI
+        run: cargo build --release --bin dglab
+
+      - name: Package CLI
+        run: |
+          mkdir -p release
+          cp target/release/dglab release/
+          cd release
+          tar czf dglab-cli-linux-x64.tar.gz dglab
+          ls -lh
+
+      - name: Upload CLI binary
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: release/dglab-cli-linux-x64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 构建 CLI 二进制 - macOS
+  build-cli-macos:
+    name: Build CLI (macOS)
+    needs: create-release
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build CLI (Apple Silicon)
+        run: cargo build --release --bin dglab --target aarch64-apple-darwin
+
+      - name: Build CLI (Intel)
+        run: cargo build --release --bin dglab --target x86_64-apple-darwin
+
+      - name: Create Universal Binary
+        run: |
+          mkdir -p release
+          lipo -create \
+            target/aarch64-apple-darwin/release/dglab \
+            target/x86_64-apple-darwin/release/dglab \
+            -output release/dglab
+          
+      - name: Package CLI
+        run: |
+          cd release
+          tar czf dglab-cli-macos-universal.tar.gz dglab
+          ls -lh
+
+      - name: Upload CLI binary
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: release/dglab-cli-macos-universal.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 构建 CLI 二进制 - Windows
+  build-cli-windows:
+    name: Build CLI (Windows)
+    needs: create-release
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build CLI
+        run: cargo build --release --bin dglab
+
+      - name: Package CLI
+        run: |
+          mkdir release
+          copy target\release\dglab.exe release\
+          cd release
+          7z a dglab-cli-windows-x64.zip dglab.exe
+          dir
+        shell: cmd
+
+      - name: Upload CLI binary
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: release/dglab-cli-windows-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 发布完成后的通知
+  release-complete:
+    name: Release Complete
+    needs:
+      - create-release
+      - build-tauri-linux
+      - build-tauri-macos
+      - build-tauri-windows
+      - build-cli-linux
+      - build-cli-macos
+      - build-cli-windows
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Check all builds
+        run: |
+          echo "Release ${{ needs.create-release.outputs.version }} complete!"
+          echo "Check the release page for all artifacts."
+          
+          if [ "${{ needs.build-tauri-linux.result }}" != "success" ]; then
+            echo "⚠️ Linux Tauri build failed"
+          fi
+          if [ "${{ needs.build-tauri-macos.result }}" != "success" ]; then
+            echo "⚠️ macOS Tauri build failed"
+          fi
+          if [ "${{ needs.build-tauri-windows.result }}" != "success" ]; then
+            echo "⚠️ Windows Tauri build failed"
+          fi
+          if [ "${{ needs.build-cli-linux.result }}" != "success" ]; then
+            echo "⚠️ Linux CLI build failed"
+          fi
+          if [ "${{ needs.build-cli-macos.result }}" != "success" ]; then
+            echo "⚠️ macOS CLI build failed"
+          fi
+          if [ "${{ needs.build-cli-windows.result }}" != "success" ]; then
+            echo "⚠️ Windows CLI build failed"
+          fi

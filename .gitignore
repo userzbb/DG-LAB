@@ -1,0 +1,34 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Configuration
+*.env
+*.env.local
+config/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Presets (optional, uncomment if you want to ignore)
+# presets/

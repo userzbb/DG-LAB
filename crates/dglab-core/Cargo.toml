@@ -1,0 +1,28 @@
+[package]
+name = "dglab-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "DG-LAB core business logic library"
+
+[dependencies]
+dglab-protocol = { path = "../dglab-protocol" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+rand.workspace = true
+dirs = "5.0"
+async-trait = "0.1"
+
+[dev-dependencies]
+tracing-subscriber.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["test-util"] }

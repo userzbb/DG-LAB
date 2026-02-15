@@ -1,0 +1,32 @@
+[package]
+name = "dglab-protocol"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "DG-LAB device communication protocol library"
+
+[dependencies]
+tokio.workspace = true
+tokio-stream.workspace = true
+btleplug.workspace = true
+tokio-rustls.workspace = true
+rustls-native-certs.workspace = true
+futures-util.workspace = true
+websocket-codec.workspace = true
+tokio-tungstenite.workspace = true
+url.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+bincode.workspace = true
+bytes.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+hex.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tracing-subscriber.workspace = true
