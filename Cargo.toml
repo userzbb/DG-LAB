@@ -13,8 +13,8 @@ version = "0.1.0"
 edition = "2021"
 authors = ["DG-LAB Contributors"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/zizimiku/DG-LAB"
-homepage = "https://github.com/zizimiku/DG-LAB"
+repository = "https://github.com/userzbb/DG-LAB"
+homepage = "https://github.com/userzbb/DG-LAB"
 
 [workspace.dependencies]
 # Async runtime
