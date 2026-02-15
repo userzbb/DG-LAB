@@ -132,7 +132,7 @@ jobs:
         run: cargo install cargo-tarpaulin
 
       - name: Generate coverage
-        run: cargo tarpaulin --workspace --out Xml --exclude-files apps/* --timeout 300
+        run: cargo tarpaulin --workspace --exclude dglab-gui-tauri --out Xml --timeout 300
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -236,15 +236,14 @@ jobs:
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
 
       - name: Check build artifacts
-        working-directory: apps/dglab-gui-tauri
         run: |
           echo "Build completed. Checking artifacts..."
           if [ "$RUNNER_OS" == "Linux" ]; then
-            ls -lh src-tauri/target/release/bundle/
+            ls -lh target/release/bundle/
           elif [ "$RUNNER_OS" == "macOS" ]; then
-            ls -lh src-tauri/target/release/bundle/
+            ls -lh target/release/bundle/
           elif [ "$RUNNER_OS" == "Windows" ]; then
-            dir src-tauri/target/release/bundle/
+            dir target/release/bundle/
           fi
         shell: bash
 
