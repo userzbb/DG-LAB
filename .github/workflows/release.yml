@@ -89,7 +89,7 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libudev-dev libdbus-1-dev \
+          sudo apt-get install -y libudev-dev libdbus-1-dev libglib2.0-dev \
             libwebkit2gtk-4.1-dev \
             build-essential \
             curl \
@@ -265,7 +265,7 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libudev-dev libdbus-1-dev
+          sudo apt-get install -y libudev-dev libdbus-1-dev libglib2.0-dev
 
       - name: Build CLI
         run: cargo build --release --bin dglab
