@@ -328,7 +328,7 @@ mod tests {
         };
         let json = serde_json::to_string(&config).unwrap();
         let restored: PresetChannelConfig = serde_json::from_str(&json).unwrap();
-        assert_eq!(restored.enabled, false);
+        assert!(!restored.enabled);
         assert_eq!(restored.min_power, 10);
         assert_eq!(restored.max_power, 80);
     }
@@ -373,7 +373,7 @@ mod tests {
             waveform: None,
         };
         preset.set_channel(0, config);
-        assert_eq!(preset.channel_a.enabled, false);
+        assert!(!preset.channel_a.enabled);
         assert_eq!(preset.channel_a.min_power, 5);
         assert_eq!(preset.channel_a.max_power, 95);
     }
@@ -691,7 +691,7 @@ mod tests {
     async fn test_manager_load_ignores_non_json() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("readme.txt"), "not a preset").unwrap();
-        std::fs::write(dir.path().join("data.bin"), &[0u8; 10]).unwrap();
+        std::fs::write(dir.path().join("data.bin"), [0u8; 10]).unwrap();
 
         let mut manager = PresetManager::new(dir.path().to_path_buf());
         manager.load_all().await.unwrap();

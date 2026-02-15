@@ -27,6 +27,7 @@ pub struct DevicePowerChangedEvent {
 
 /// 设备信息更新事件
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct DeviceInfoUpdatedEvent {
     /// 设备 ID
     pub device_id: String,
@@ -36,6 +37,7 @@ pub struct DeviceInfoUpdatedEvent {
 
 /// 设备电池电量更新事件
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct DeviceBatteryUpdatedEvent {
     /// 设备 ID
     pub device_id: String,
@@ -45,6 +47,7 @@ pub struct DeviceBatteryUpdatedEvent {
 
 /// 设备错误事件
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct DeviceErrorEvent {
     /// 设备 ID
     pub device_id: String,
@@ -53,6 +56,7 @@ pub struct DeviceErrorEvent {
 }
 
 /// 事件名称常量
+#[allow(dead_code)]
 pub mod event_names {
     /// 设备状态变更
     pub const DEVICE_STATE_CHANGED: &str = "device:state_changed";

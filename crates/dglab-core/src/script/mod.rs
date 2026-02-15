@@ -44,6 +44,6 @@ mod tests {
 
     #[test]
     fn test_default() {
-        let _engine = ScriptEngine::default();
+        let _engine = ScriptEngine;
     }
 }
