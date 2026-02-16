@@ -250,10 +250,10 @@ dglab connect --id "DG-LAB-XXXX"
 dglab bridge --device 47L121000
 
 # 使用自定义服务器
-dglab bridge --device 47L121000 --ws-url ws://你的服务器地址:端口
+dglab bridge --device 47L121000 --server ws://你的服务器地址:端口
 
 # 使用本机测试服务器
-dglab bridge --device 47L121000 --ws-url ws://localhost:8765
+dglab bridge --device 47L121000 --server ws://localhost:8765
 ```
 
 ### WiFi CLI 模式
@@ -287,7 +287,7 @@ python test-local-server.py
 dglab wifi connect --server ws://localhost:8765
 
 # 或桥接模式
-dglab bridge --device 47L121000 --ws-url ws://localhost:8765
+dglab bridge --device 47L121000 --server ws://localhost:8765
 ```
 
 ### 功率控制
@@ -461,7 +461,7 @@ dglab tui
 **方案一: 使用自定义服务器**
 ```bash
 # 桥接模式:
-dglab bridge --device 47L121000 --ws-url ws://你的服务器地址:端口
+dglab bridge --device 47L121000 --server ws://你的服务器地址:端口
 
 # WiFi CLI 模式:
 dglab wifi connect --server ws://你的服务器地址:端口
