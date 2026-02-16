@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,15 +21,7 @@ export function WifiConnector({ onConnected, onCancel }: WifiConnectorProps) {
   const [connectionInfo, setConnectionInfo] = useState<WifiConnectResponse | null>(null);
   const [isBound, setIsBound] = useState(false);
   const [copied, setCopied] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const checkIntervalRef = useRef<number | null>(null);
-
-  // 生成二维码
-  useEffect(() => {
-    if (connectionInfo?.qr_url && canvasRef.current) {
-      generateQRCode(connectionInfo.qr_url, canvasRef.current);
-    }
-  }, [connectionInfo]);
 
   // 轮询检查绑定状态
   useEffect(() => {
@@ -101,62 +94,6 @@ export function WifiConnector({ onConnected, onCancel }: WifiConnectorProps) {
     }
   };
 
-  // 简单的二维码生成（使用 Canvas）
-  const generateQRCode = (text: string, canvas: HTMLCanvasElement) => {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const size = 256;
-    const qrSize = 25; // QR code grid size
-    const cellSize = size / qrSize;
-    
-    canvas.width = size;
-    canvas.height = size;
-
-    // 白色背景
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(0, 0, size, size);
-
-    // 生成简单的二维码图案（这里用文本的哈希值生成伪随机图案）
-    ctx.fillStyle = "#000000";
-    for (let y = 0; y < qrSize; y++) {
-      for (let x = 0; x < qrSize; x++) {
-        // 使用文本哈希生成伪随机模式
-        const hash = simpleHash(text + x + y);
-        if (hash % 2 === 0) {
-          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-        }
-      }
-    }
-
-    // 添加定位点（左上、右上、左下）
-    const drawFinderPattern = (x: number, y: number) => {
-      // 外框
-      ctx.fillStyle = "#000000";
-      ctx.fillRect(x * cellSize, y * cellSize, 7 * cellSize, 7 * cellSize);
-      // 内部白色
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect((x + 1) * cellSize, (y + 1) * cellSize, 5 * cellSize, 5 * cellSize);
-      // 中心黑点
-      ctx.fillStyle = "#000000";
-      ctx.fillRect((x + 2) * cellSize, (y + 2) * cellSize, 3 * cellSize, 3 * cellSize);
-    };
-
-    drawFinderPattern(0, 0); // 左上
-    drawFinderPattern(qrSize - 7, 0); // 右上
-    drawFinderPattern(0, qrSize - 7); // 左下
-  };
-
-  const simpleHash = (str: string): number => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash);
-  };
-
   if (connectionInfo) {
     return (
       <Card className="w-full max-w-md mx-auto">
@@ -186,11 +123,12 @@ export function WifiConnector({ onConnected, onCancel }: WifiConnectorProps) {
           {!isBound && (
             <>
               {/* 二维码 */}
-              <div className="flex justify-center">
-                <canvas
-                  ref={canvasRef}
-                  className="border-2 border-gray-200 rounded-lg"
-                  style={{ width: "256px", height: "256px" }}
+              <div className="flex justify-center p-4 bg-white rounded-lg">
+                <QRCodeSVG 
+                  value={connectionInfo.qr_url} 
+                  size={256}
+                  level="M"
+                  includeMargin={true}
                 />
               </div>
 

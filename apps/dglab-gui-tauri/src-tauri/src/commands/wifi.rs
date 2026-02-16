@@ -56,14 +56,19 @@ pub async fn wifi_connect(
         .await
         .map_err(|e| format!("Failed to connect to WiFi server: {}", e))?;
 
-    // 等待获取 clientId
-    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
-    // 获取二维码 URL
-    let qr_url = wifi_device
-        .qr_url()
-        .await
-        .ok_or_else(|| "Failed to get QR code URL".to_string())?;
+    // 等待获取 clientId（最多等待 5 秒）
+    let mut retries = 0;
+    let qr_url = loop {
+        if let Some(url) = wifi_device.qr_url().await {
+            break url;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        retries += 1;
+        if retries > 25 {
+            // 5 秒超时
+            return Err("Timeout waiting for server client ID".to_string());
+        }
+    };
 
     info!("WiFi device created with QR URL: {}", qr_url);
 
