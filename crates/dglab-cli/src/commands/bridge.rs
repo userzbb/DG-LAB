@@ -32,7 +32,7 @@ pub async fn execute(cli: &mut DglabCli, args: BridgeArgs) -> Result<()> {
     println!("🌉 启动 BLE-WebSocket 桥接模式");
     println!();
 
-    // 1. 扫描并连接 BLE 设备
+    // 1. 先扫描 BLE 设备（找到目标设备）
     println!("📡 步骤 1: 扫描 BLE 设备...");
     let ble_manager = cli
         .ble_manager()
@@ -69,31 +69,15 @@ pub async fn execute(cli: &mut DglabCli, args: BridgeArgs) -> Result<()> {
         )
     };
 
-    // 3. 连接 BLE 设备（需要先获取 protocol device）
-    println!("📲 步骤 3: 连接 BLE 设备...");
-
-    // 使用 BLE manager 连接设备
-    let protocol_device = ble_manager.connect(&target_device.id).await?;
-
-    bridge_device.connect_ble(protocol_device).await?;
-    println!("✓ BLE 设备已连接");
-    println!();
-
-    // 4. 连接 WebSocket 并获取二维码
-    println!("🌐 步骤 4: 连接 WebSocket 服务器...");
+    // 3. 连接 WebSocket 服务器（先连接，立即显示二维码）
+    println!("🌐 步骤 3: 连接 WebSocket 服务器...");
     bridge_device.connect().await?;
     println!("✓ 已连接到服务器");
     println!();
 
-    // 4. 连接 WebSocket 并获取二维码
-    println!("🌐 步骤 4: 连接 WebSocket 服务器...");
-    bridge_device.connect().await?;
-    println!("✓ 已连接到服务器");
-    println!();
-
-    // 5. 等待并显示二维码
-    println!("📱 步骤 5: 获取二维码...");
-    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    // 4. 立即显示二维码（不需要等 BLE）
+    println!("📱 步骤 4: 获取二维码...");
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
     if let Some(qr_url) = bridge_device.qr_url().await {
         println!("📲 请用第三方控制器扫描以下二维码或访问链接：");
@@ -108,14 +92,20 @@ pub async fn execute(cli: &mut DglabCli, args: BridgeArgs) -> Result<()> {
         return Err(CliError::Other("Failed to get QR URL".to_string()));
     }
 
-    // 6. 等待绑定
+    // 5. 连接 BLE 设备（二维码显示后再连）
+    println!("📲 步骤 5: 连接 BLE 设备...");
+
+    let protocol_device = ble_manager.connect(&target_device.id).await?;
+    bridge_device.connect_ble(protocol_device).await?;
+    println!("✓ BLE 设备已连接");
+    println!();
+
+    // 6. 等待控制器连接
     println!("⏳ 等待控制器连接...");
     println!();
 
-    // 订阅设备事件
-    let mut events = bridge_device.subscribe_events();
-
-    // 7. 启动设备
+    // 7. 启动桥接
+    println!("🚀 步骤 6: 启动桥接模式...");
     bridge_device.start().await?;
     info!("设备已启动，开始桥接模式");
 
@@ -131,6 +121,9 @@ pub async fn execute(cli: &mut DglabCli, args: BridgeArgs) -> Result<()> {
     println!("  • BLE 设备状态会同步到 WebSocket 服务器");
     println!("  • 按 Ctrl+C 停止");
     println!();
+
+    // 订阅设备事件
+    let mut events = bridge_device.subscribe_events();
 
     // 监听事件
     loop {
