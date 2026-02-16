@@ -38,9 +38,11 @@ pub async fn execute(app: &mut DglabCli, args: ConnectArgs) -> crate::error::Res
 
     // 先扫描获取设备列表
     info!("Scanning for devices...");
-    
-    let ble_manager = app.ble_manager().expect("BLE manager should be initialized");
-    
+
+    let ble_manager = app
+        .ble_manager()
+        .expect("BLE manager should be initialized");
+
     ble_manager.start_scan().await?;
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
     ble_manager.stop_scan().await?;

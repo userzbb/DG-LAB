@@ -50,6 +50,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4.4", features = ["derive"] }
 ratatui = "0.25"
 crossterm = "0.27"
+qrcode = "0.14"
 
 # GUI
 eframe = "0.24"

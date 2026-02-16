@@ -1,10 +1,11 @@
 //! WiFi 连接命令
 
 use clap::Parser;
+use qrcode::{render::unicode, QrCode};
 use tracing::{debug, info};
 
 use super::DglabCli;
-use dglab_core::device::{Device, WsCoyoteDevice};
+use dglab_core::device::{Device, DeviceState, WsCoyoteDevice};
 
 /// WiFi 子命令
 #[derive(Parser, Debug)]
@@ -52,25 +53,97 @@ pub async fn execute(app: &mut DglabCli, args: WifiArgs) -> crate::error::Result
             let device_id = uuid::Uuid::new_v4().to_string();
             let device_name = "WiFi-Coyote".to_string();
 
+            println!("\n╔══════════════════════════════════════════════════════╗");
+            println!("║           DG-LAB WiFi 连接向导                      ║");
+            println!("╚══════════════════════════════════════════════════════╝\n");
+
             // 先创建 WsCoyoteDevice，连接并显示二维码
-            let mut wifi_device = if let Some(srv) = server {
-                WsCoyoteDevice::with_server(device_id.clone(), device_name.clone(), srv)
+            let mut wifi_device = if let Some(srv) = &server {
+                println!("📡 正在连接到自定义服务器: {}", srv);
+                WsCoyoteDevice::with_server(device_id.clone(), device_name.clone(), srv.clone())
             } else {
+                println!("📡 正在连接到官方服务器: wss://ws.dungeon-lab.cn");
                 WsCoyoteDevice::new(device_id.clone(), device_name.clone())
             };
 
-            // 连接
+            // 连接到 WebSocket 服务器
+            print!("⏳ 建立 WebSocket 连接... ");
             wifi_device.connect().await?;
+            println!("✓");
 
-            // 等待获取 clientId 和二维码
-            println!("\nConnecting to server...");
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            // 等待获取 clientId
+            print!("⏳ 等待服务器分配 ID... ");
+            let mut retries = 0;
+            let qr_url = loop {
+                if let Some(url) = wifi_device.qr_url().await {
+                    println!("✓");
+                    break url;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                retries += 1;
+                if retries > 25 {
+                    // 5 秒超时
+                    println!("✗");
+                    println!("\n❌ 错误: 超时未收到服务器 clientId");
+                    return Ok(());
+                }
+            };
 
-            if let Some(qr_url) = wifi_device.qr_url().await {
-                println!("\nQR Code URL:");
-                println!("{}", qr_url);
-                println!("\nPlease scan this QR code with DG-LAB APP to bind.");
-                println!("Waiting for binding... (press Ctrl+C to cancel)\n");
+            // 显示二维码
+            println!("\n╔══════════════════════════════════════════════════════╗");
+            println!("║              📱 请使用 DG-LAB APP 扫码               ║");
+            println!("╚══════════════════════════════════════════════════════╝\n");
+
+            // 生成并显示 ASCII 二维码
+            if let Ok(code) = QrCode::new(&qr_url) {
+                let qr_string = code
+                    .render::<unicode::Dense1x2>()
+                    .dark_color(unicode::Dense1x2::Light)
+                    .light_color(unicode::Dense1x2::Dark)
+                    .build();
+                println!("{}", qr_string);
+            } else {
+                println!("⚠️  无法生成二维码，请手动输入以下 URL：");
+            }
+
+            println!("\n🔗 连接 URL:");
+            println!("   {}\n", qr_url);
+
+            // 等待绑定
+            print!("⏳ 等待 APP 扫码绑定");
+            let mut dots = 0;
+            loop {
+                if wifi_device.is_bound().await {
+                    println!(" ✓\n");
+                    break;
+                }
+
+                // 检查设备状态
+                match wifi_device.state() {
+                    DeviceState::Connected => {
+                        // 继续等待
+                    }
+                    DeviceState::Disconnected => {
+                        println!(" ✗\n");
+                        println!("❌ 连接已断开");
+                        return Ok(());
+                    }
+                    _ => {}
+                }
+
+                // 显示动画
+                print!(".");
+                if let Err(e) = std::io::Write::flush(&mut std::io::stdout()) {
+                    debug!("Failed to flush stdout: {}", e);
+                }
+                dots += 1;
+                if dots > 60 {
+                    // 每行最多 60 个点
+                    print!("\n⏳ 仍在等待 APP 扫码绑定");
+                    dots = 0;
+                }
+
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
             }
 
             // 添加到会话管理器
@@ -78,7 +151,17 @@ pub async fn execute(app: &mut DglabCli, args: WifiArgs) -> crate::error::Result
                 .add_device(Box::new(wifi_device))
                 .await?;
 
-            println!("WiFi device connected and added to session.");
+            println!("╔══════════════════════════════════════════════════════╗");
+            println!("║                  ✅ 绑定成功！                      ║");
+            println!("╚══════════════════════════════════════════════════════╝\n");
+            println!("📱 设备已就绪，可以开始控制");
+            println!("💡 提示: 使用 'dglab wifi control' 命令控制设备");
+            println!("💡 提示: 使用 'dglab wifi status' 查看设备状态\n");
+
+            // 保持连接，等待用户中断
+            println!("⚡ WiFi 连接已建立，按 Ctrl+C 退出...\n");
+            tokio::signal::ctrl_c().await?;
+            println!("\n👋 正在断开连接...");
         }
 
         WifiCommand::Disconnect => {
