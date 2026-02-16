@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.2] - 2026-02-16
+
+### 🔧 修复
+
+- **CI/CD**: 修复 Tauri 应用构建产物上传路径错误
+- **CI/CD**: 统一所有平台的构建产物路径为工作区根目录 `target/`
+- **Release**: 确保 AppImage、DMG、MSI/EXE 安装包正确上传到 GitHub Release
+
+---
+
 ## [0.1.1] - 2026-02-16
 
 ### 🔧 修复
