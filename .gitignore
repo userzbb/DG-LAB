@@ -29,6 +29,6 @@ logs/
 # OS files
 .DS_Store
 Thumbs.db
-
+Web Bluetooth
 # Presets (optional, uncomment if you want to ignore)
 # presets/

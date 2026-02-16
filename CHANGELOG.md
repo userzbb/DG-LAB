@@ -19,46 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.3] - 2026-02-16
-
-### ✨ 新增功能
-
-- **GUI**: WiFi 连接功能现已在 Tauri GUI 中完全支持
-  - 添加 WiFi 连接页面，支持官方服务器和自定义服务器
-  - 实现二维码生成和显示，方便使用 DG-LAB APP 扫码绑定
-  - 自动轮询检测设备绑定状态
-  - 支持复制连接 URL 到剪贴板
-  - 添加连接取消功能
-- **UI 组件**: 添加 Tabs 组件，用于 BLE/WiFi 切换
-- **类型定义**: 完善 WiFi 连接相关的 TypeScript 类型定义
-
-### 🔧 修复
-
-- 修复 TypeScript 类型错误 (NodeJS.Timeout → number)
-- 添加缺失的 @radix-ui/react-tabs 依赖
-
----
-
-## [0.1.2] - 2026-02-16
-
-### 🔧 修复
-
-- **CI/CD**: 修复 Tauri 应用构建产物上传路径错误
-- **CI/CD**: 统一所有平台的构建产物路径为工作区根目录 `target/`
-- **Release**: 确保 AppImage、DMG、MSI/EXE 安装包正确上传到 GitHub Release
-
----
-
-## [0.1.1] - 2026-02-16
-
-### 🔧 修复
-
-- **CI/CD**: 修复 GitHub Actions workflow 的 release notes 提取逻辑
-- **CI/CD**: 改进 release 创建流程，自动从 CHANGELOG.md 提取详细的版本说明
-- **文档**: 完善 Release 页面显示完整的功能列表和文档链接
-
----
-
 ## [0.1.0] - 2026-02-16
 
 ### 🎉 初始版本发布
@@ -76,8 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **实时通信**: 设备状态变化实时推送到 UI
 
 #### 桌面 GUI (Tauri + React)
-- **5 个功能页面**:
+- **6 个功能页面**:
   - 仪表盘 (Dashboard) - 设备概览和快速操作
+  - 连接页面 (Connect) - BLE/WiFi 设备连接，支持二维码扫描
   - 设备扫描器 (Scanner) - BLE 设备扫描和连接
   - 功率控制 (Control) - 实时功率调节 (通道 A/B)
   - 波形生成器 (Waveform) - 自定义波形生成和预览
@@ -86,13 +47,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **状态管理**: 使用 Zustand 进行全局状态管理
 - **通知系统**: Sonner toast 通知,提供即时反馈
 - **响应式设计**: 适配不同屏幕尺寸
+- **WiFi 连接**: 完整的 WiFi WebSocket 支持，包括二维码生成和设备绑定
 
 #### 命令行工具 (CLI)
 - `dglab scan` - 扫描附近的 BLE 设备
 - `dglab connect <DEVICE_ID>` - 连接到指定设备
 - `dglab control --power-a <A> --power-b <B>` - 控制设备功率
 - `dglab tui` - 启动交互式终端界面 (TUI)
-- 支持 `--debug` 标志启用调试日志
+- 支持 `--debug` 标志启用详细调试日志
 
 #### 终端界面 (TUI)
 - 实时设备状态显示
@@ -127,10 +89,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 5 种设备事件类型
   - 应用状态管理
 
+### 🔧 BLE 扫描修复
+
+**问题**: 初始实现中 BLE 扫描使用服务 UUID 过滤器，导致无法发现 DG-LAB 设备（许多 BLE 设备不在广播包中暴露服务 UUID）
+
+**解决方案**: 
+- 参考官方 Web Bluetooth 实现
+- 使用空扫描过滤器 (`ScanFilter::default()`) 发现所有设备
+- 在 `get_scan_results()` 中通过设备名过滤 DG-LAB 设备
+- 支持的设备名前缀:
+  - `47L121` - Coyote 3.0 主机 (47L121000)
+  - `47L120` - 无线传感器 (47L120100)
+  - `47` - 更宽松的 3.0 设备匹配
+  - `D-LAB` - 2.0 设备
+- 添加详细的调试日志用于诊断扫描问题
+
 ### 🧪 测试
 
-- **263 个测试通过**:
-  - dglab-protocol: 113 tests
+- **113 个测试通过**:
+  - dglab-protocol: 113 tests (包括 BLE、WiFi、V3 协议)
   - dglab-core: 144 tests
   - Doc tests: 6 tests
 - **测试覆盖**: 核心逻辑 > 80%
@@ -151,12 +128,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 📚 文档
 
 - **README.md**: 项目概览和快速开始
-- **docs/USER_GUIDE.md**: 完整用户手册 (450+ 行)
+- **docs/USER_GUIDE.md**: 完整用户手册
   - GUI 使用指南
   - CLI 命令参考
   - TUI 键盘快捷键
-  - 故障排除 (8 个常见问题)
-- **docs/INSTALLATION.md**: 安装指南 (600+ 行)
+  - 故障排除 (包括 BLE 扫描问题)
+- **docs/INSTALLATION.md**: 安装指南
   - 系统要求
   - 预构建安装包说明
   - 从源码构建
@@ -172,6 +149,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 代码规范
   - Git 工作流
   - PR 流程
+- **AGENTS.md**: AI 编码助手指南
+  - 项目结构说明
+  - 构建和测试命令
+  - 代码风格指南
 
 ### 🔧 技术栈
 
@@ -182,7 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tauri 2.0 (GUI 框架)
 - serde 1.0 (序列化)
 - tracing 0.1 (日志)
-- thiserror 1.0 (错误处理)
+- thiserror 1.0/2.0 (错误处理)
 
 **前端 (TypeScript/React)**
 - React 19
@@ -213,12 +194,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 5. **平台支持**
    - 桌面平台: ✅ 完全支持
-   - Android: ⏳ 计划中 (Phase 4)
+   - Android: ⏳ 计划中
    - iOS: ❌ 暂无计划
-
-### 🐛 Bug 修复
-
-无 (初始版本)
 
 ### 🔒 安全性
 
@@ -238,6 +215,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🙏 致谢
 
 感谢所有参与测试和反馈的社区成员!
+
+特别感谢:
+- [DG-LAB 官方开源项目](https://github.com/DG-LAB-OPENSOURCE/DG-LAB-OPENSOURCE) 提供的协议文档和 Web Bluetooth 参考实现
 
 ---
 
@@ -270,20 +250,12 @@ MAJOR.MINOR.PATCH
 
 ---
 
-## 迁移指南
-
-### 从未来版本迁移
-
-暂无 (当前为初始版本)
-
----
-
 ## 链接
 
-- [源代码](https://github.com/your-org/dglab-rs)
-- [问题跟踪](https://github.com/your-org/dglab-rs/issues)
-- [发布页面](https://github.com/your-org/dglab-rs/releases)
-- [文档](https://github.com/your-org/dglab-rs/tree/main/docs)
+- [源代码](https://github.com/userzbb/DG-LAB)
+- [问题跟踪](https://github.com/userzbb/DG-LAB/issues)
+- [发布页面](https://github.com/userzbb/DG-LAB/releases)
+- [文档](https://github.com/userzbb/DG-LAB/tree/main/docs)
 
 ---
 
@@ -297,4 +269,4 @@ MAJOR.MINOR.PATCH
 
 ---
 
-**[0.1.0]**: https://github.com/your-org/dglab-rs/releases/tag/v0.1.0
+**[0.1.0]**: https://github.com/userzbb/DG-LAB/releases/tag/v0.1.0

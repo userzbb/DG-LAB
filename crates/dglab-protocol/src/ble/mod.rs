@@ -11,7 +11,7 @@ use std::sync::Arc;
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter};
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{debug, info};
 
 pub use device::{BleDevice, DeviceInfo};
 pub use scanner::{BleScanner, ScanResult};
@@ -78,9 +78,10 @@ impl BleManager {
     pub async fn start_scan(&self) -> Result<()> {
         info!("Starting BLE scan");
 
-        let filter = ScanFilter {
-            services: vec![uuids::SERVICE_UUID],
-        };
+        // 使用空过滤器 - 许多设备（包括 DG-LAB）不在广播包中暴露服务 UUID
+        // 参考 Web Bluetooth 实现：使用 namePrefix 过滤，服务 UUID 作为 optionalServices
+        // 在 get_scan_results() 中通过设备名过滤 DG-LAB 设备
+        let filter = ScanFilter::default();
 
         self.adapter
             .start_scan(filter)
@@ -108,6 +109,8 @@ impl BleManager {
                 ProtocolError::BleError(format!("Failed to get peripherals: {}", e))
             })?;
 
+        debug!("Found {} peripherals", peripherals.len());
+
         for peripheral in peripherals {
             if let Some(properties) = peripheral
                 .properties()
@@ -118,15 +121,30 @@ impl BleManager {
                     .local_name
                     .unwrap_or_else(|| "Unknown".to_string());
 
+                debug!(
+                    "Device: {} ({}), RSSI: {:?}, Services: {:?}",
+                    local_name,
+                    properties.address,
+                    properties.rssi,
+                    properties.services.len()
+                );
+
                 // 检查是否是 DG-LAB 设备
                 // 脉冲主机 3.0 蓝牙名称: 47L121000
                 // 无线传感器蓝牙名称: 47L120100
+                // 2.0 设备名称前缀: D-LAB
                 if local_name.starts_with("47L121")
                     || local_name.starts_with("47L120")
+                    || local_name.starts_with("47")  // 更宽松的前缀匹配
+                    || local_name.starts_with("D-LAB")
                     || local_name.to_lowercase().contains("dglab")
                     || local_name.to_lowercase().contains("coyote")
                     || properties.services.contains(&uuids::SERVICE_UUID)
                 {
+                    info!(
+                        "Found DG-LAB device: {} ({})",
+                        local_name, properties.address
+                    );
                     results.push(ScanResult {
                         id: peripheral.id().to_string(),
                         name: local_name,
@@ -140,6 +158,7 @@ impl BleManager {
             }
         }
 
+        info!("Found {} DG-LAB devices", results.len());
         Ok(results)
     }
 
