@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.1] - 2026-02-16
+
+### 🔧 修复
+
+- **CI/CD**: 修复 GitHub Actions workflow 的 release notes 提取逻辑
+- **CI/CD**: 改进 release 创建流程，自动从 CHANGELOG.md 提取详细的版本说明
+- **文档**: 完善 Release 页面显示完整的功能列表和文档链接
+
+---
+
 ## [0.1.0] - 2026-02-16
 
 ### 🎉 初始版本发布
