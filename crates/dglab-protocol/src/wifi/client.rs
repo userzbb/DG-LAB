@@ -249,10 +249,59 @@ impl WsClient {
         let state = self.handle.state.lock().await;
         let client_id = state.client_id.clone().unwrap_or_default();
         let target_id = state.target_id.clone().unwrap_or_default();
-        drop(state);
 
-        let msg = WsMessage::new(MessageType::Heartbeat, client_id, target_id, "");
+        let msg = WsMessage::new(
+            MessageType::Heartbeat,
+            client_id,
+            target_id,
+            "200".to_string(),
+        );
         self.send(&msg).await
+    }
+
+    /// 等待绑定成功（带超时）
+    pub async fn wait_for_bind(&mut self, timeout_secs: u64) -> WsResult<bool> {
+        use tokio::time::{timeout, Duration};
+
+        let start = std::time::Instant::now();
+        let timeout_duration = Duration::from_secs(timeout_secs);
+
+        loop {
+            // 检查是否已绑定
+            if self.is_bound().await {
+                return Ok(true);
+            }
+
+            // 检查是否超时
+            if start.elapsed() > timeout_duration {
+                return Ok(false);
+            }
+
+            // 等待事件
+            match timeout(Duration::from_millis(500), self.recv_event()).await {
+                Ok(Ok(Some(event))) => {
+                    match event {
+                        WsEvent::Bound(_) => return Ok(true),
+                        WsEvent::Error(_) => return Ok(false),
+                        WsEvent::BindTimeout => return Ok(false),
+                        WsEvent::Closed => return Ok(false),
+                        _ => continue, // 其他事件继续等待
+                    }
+                }
+                Ok(Ok(None)) => {
+                    // 通道关闭
+                    return Ok(false);
+                }
+                Ok(Err(e)) => {
+                    // 接收错误
+                    return Err(e);
+                }
+                Err(_) => {
+                    // 超时，继续循环
+                    continue;
+                }
+            }
+        }
     }
 
     /// 发送强度操作

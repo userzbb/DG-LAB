@@ -247,10 +247,10 @@ impl CoyoteDevice {
             "B1 response: seq={}, strength_a={}, strength_b={}",
             response.sequence, response.strength_a, response.strength_b
         );
-        let _ = event_tx.send(DeviceEvent::PowerChanged(
-            response.strength_a,
-            response.strength_b,
-        ));
+        let _ = event_tx.send(DeviceEvent::StatusReport {
+            power_a: response.strength_a,
+            power_b: response.strength_b,
+        });
     }
 
     /// 将 WaveformConfig 转为 V3 WaveformData
@@ -683,7 +683,10 @@ impl WsCoyoteDevice {
             dglab_protocol::wifi::WsEvent::Strength(data) => {
                 *power_a = data.strength_a;
                 *power_b = data.strength_b;
-                let _ = event_tx.send(DeviceEvent::PowerChanged(*power_a, *power_b));
+                let _ = event_tx.send(DeviceEvent::StatusReport {
+                    power_a: *power_a,
+                    power_b: *power_b,
+                });
             }
             dglab_protocol::wifi::WsEvent::Feedback(button) => {
                 debug!("Feedback button pressed: {:?}", button);
@@ -701,6 +704,12 @@ impl WsCoyoteDevice {
             }
             dglab_protocol::wifi::WsEvent::Other(msg) => {
                 debug!("Other message: {:?}", msg);
+            }
+            dglab_protocol::wifi::WsEvent::BindTimeout => {
+                warn!("WebSocket bind timeout");
+            }
+            dglab_protocol::wifi::WsEvent::Closed => {
+                info!("WebSocket connection closed");
             }
         }
     }

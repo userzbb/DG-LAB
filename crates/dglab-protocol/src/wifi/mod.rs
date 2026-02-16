@@ -31,12 +31,104 @@ use serde::{Deserialize, Serialize};
 
 pub use client::WsClient;
 pub use error::{WsError, WsResult};
+pub use server::{ServerEvent, WsServer};
 
 mod client;
 mod error;
+mod server;
 
 /// 官方 WebSocket 服务器地址
 pub const OFFICIAL_SERVER: &str = "wss://ws.dungeon-lab.cn";
+
+/// 心跳间隔（秒）- 根据 hyperzlib 项目实现
+pub const HEARTBEAT_INTERVAL: u64 = 20;
+
+/// 心跳超时（秒）- 根据 hyperzlib 项目实现
+pub const HEARTBEAT_TIMEOUT: u64 = 20;
+
+/// 返回码 (RetCode) - 根据 hyperzlib 项目实现
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RetCode {
+    /// 成功
+    #[serde(rename = "200")]
+    Success,
+    /// 客户端断开连接
+    #[serde(rename = "209")]
+    ClientDisconnected,
+    /// 无效的客户端ID
+    #[serde(rename = "210")]
+    InvalidClientId,
+    /// 服务器延迟（超时）
+    #[serde(rename = "211")]
+    ServerDelay,
+    /// ID 已被绑定
+    #[serde(rename = "400")]
+    IdAlreadyBound,
+    /// 目标客户端未找到
+    #[serde(rename = "401")]
+    TargetClientNotFound,
+    /// 不兼容的关系
+    #[serde(rename = "402")]
+    IncompatibleRelationship,
+    /// 非 JSON 内容
+    #[serde(rename = "403")]
+    NonJsonContent,
+    /// 接收者未找到
+    #[serde(rename = "404")]
+    RecipientNotFound,
+    /// 消息过长
+    #[serde(rename = "405")]
+    MessageTooLong,
+    /// 服务器内部错误
+    #[serde(rename = "500")]
+    ServerInternalError,
+}
+
+impl RetCode {
+    /// 转换为字符串
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RetCode::Success => "200",
+            RetCode::ClientDisconnected => "209",
+            RetCode::InvalidClientId => "210",
+            RetCode::ServerDelay => "211",
+            RetCode::IdAlreadyBound => "400",
+            RetCode::TargetClientNotFound => "401",
+            RetCode::IncompatibleRelationship => "402",
+            RetCode::NonJsonContent => "403",
+            RetCode::RecipientNotFound => "404",
+            RetCode::MessageTooLong => "405",
+            RetCode::ServerInternalError => "500",
+        }
+    }
+
+    /// 从字符串解析（不推荐直接使用，请使用 `str::parse()`）
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+impl std::str::FromStr for RetCode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "200" => Ok(RetCode::Success),
+            "209" => Ok(RetCode::ClientDisconnected),
+            "210" => Ok(RetCode::InvalidClientId),
+            "211" => Ok(RetCode::ServerDelay),
+            "400" => Ok(RetCode::IdAlreadyBound),
+            "401" => Ok(RetCode::TargetClientNotFound),
+            "402" => Ok(RetCode::IncompatibleRelationship),
+            "403" => Ok(RetCode::NonJsonContent),
+            "404" => Ok(RetCode::RecipientNotFound),
+            "405" => Ok(RetCode::MessageTooLong),
+            "500" => Ok(RetCode::ServerInternalError),
+            _ => Err(()),
+        }
+    }
+}
 
 /// 消息类型
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -78,6 +170,65 @@ impl From<MessageType> for String {
             MessageType::Error => "error".to_string(),
             MessageType::Unknown(s) => s,
         }
+    }
+}
+
+/// 消息数据头 (MessageDataHead) - 根据 hyperzlib 项目实现
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MessageDataHead {
+    /// 目标ID
+    TargetId,
+    /// DG-Lab 标识
+    DgLab,
+    /// 强度控制
+    Strength,
+    /// 波形数据
+    Pulse,
+    /// 清除波形
+    Clear,
+    /// 按钮反馈
+    Feedback,
+}
+
+impl MessageDataHead {
+    /// 转换为字符串
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MessageDataHead::TargetId => "targetId",
+            MessageDataHead::DgLab => "DGLAB",
+            MessageDataHead::Strength => "strength",
+            MessageDataHead::Pulse => "pulse",
+            MessageDataHead::Clear => "clear",
+            MessageDataHead::Feedback => "feedback",
+        }
+    }
+
+    /// 从字符串解析（不推荐直接使用，请使用 `str::parse()`）
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+impl std::str::FromStr for MessageDataHead {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "targetId" => Ok(MessageDataHead::TargetId),
+            "DGLAB" => Ok(MessageDataHead::DgLab),
+            "strength" => Ok(MessageDataHead::Strength),
+            "pulse" => Ok(MessageDataHead::Pulse),
+            "clear" => Ok(MessageDataHead::Clear),
+            "feedback" => Ok(MessageDataHead::Feedback),
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<MessageDataHead> for String {
+    fn from(head: MessageDataHead) -> String {
+        head.as_str().to_string()
     }
 }
 
@@ -465,6 +616,10 @@ pub enum WsEvent {
     PeerDisconnected,
     /// 收到错误
     Error(ErrorCode),
+    /// 绑定超时
+    BindTimeout,
+    /// 连接关闭
+    Closed,
     /// 其他消息
     Other(WsMessage),
 }

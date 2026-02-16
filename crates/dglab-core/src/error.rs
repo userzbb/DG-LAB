@@ -29,6 +29,10 @@ pub enum CoreError {
     #[error("Power out of range: {0}, max: {1}")]
     PowerOutOfRange(u8, u8),
 
+    /// 无效通道
+    #[error("Invalid channel: {0}")]
+    InvalidChannel(u8),
+
     /// 预设不存在
     #[error("Preset not found: {0}")]
     PresetNotFound(String),

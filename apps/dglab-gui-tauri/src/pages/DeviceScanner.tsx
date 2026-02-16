@@ -20,7 +20,7 @@ export function DeviceScanner() {
     setConnectingId(device.id);
     try {
       await connectToDevice(device.id, device.name);
-      navigate("/control");
+      navigate("/");
     } catch (error) {
       console.error("Failed to connect:", error);
     } finally {
@@ -30,7 +30,7 @@ export function DeviceScanner() {
 
   const handleWifiConnected = (deviceId: string) => {
     console.log("WiFi device connected:", deviceId);
-    navigate("/control");
+    navigate("/");
   };
 
   const getSignalIcon = (rssi?: number) => {

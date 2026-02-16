@@ -24,11 +24,11 @@ pub struct ControlArgs {
     power: Option<u8>,
 
     /// 开始输出
-    #[arg(short, long)]
+    #[arg(long)]
     start: bool,
 
     /// 停止输出
-    #[arg(short, long)]
+    #[arg(long)]
     stop: bool,
 
     /// 显示设备状态

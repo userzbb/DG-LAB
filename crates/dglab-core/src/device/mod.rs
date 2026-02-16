@@ -4,6 +4,7 @@
 
 pub mod bridge;
 pub mod coyote;
+pub mod mock;
 pub mod traits;
 
 use serde::{Deserialize, Serialize};
@@ -12,6 +13,7 @@ use tracing::debug;
 
 pub use bridge::BleWsBridgeDevice;
 pub use coyote::{CoyoteDevice, WsCoyoteDevice};
+pub use mock::MockDevice;
 pub use traits::{Device, DeviceConfig};
 
 /// 设备状态
@@ -34,12 +36,35 @@ pub enum DeviceState {
 pub enum DeviceEvent {
     /// 状态变更
     StateChanged(DeviceState),
-    /// 强度变更 (通道 A, 通道 B)
-    PowerChanged(u8, u8),
+    /// 单通道强度变更
+    PowerChanged {
+        /// 通道编号 (0=A, 1=B)
+        channel: u8,
+        /// 强度值 (0-100)
+        power: u8,
+    },
+    /// 设备状态上报（两个通道强度）
+    StatusReport {
+        /// A 通道强度
+        power_a: u8,
+        /// B 通道强度
+        power_b: u8,
+    },
+    /// 波形变更
+    WaveformChanged {
+        /// 通道编号 (0=A, 1=B)
+        channel: u8,
+    },
     /// 设备信息更新
     InfoUpdated(crate::device::traits::DeviceInfo),
     /// 电池电量更新
     BatteryUpdated(u8),
+    /// 设备已启动
+    Started,
+    /// 设备已停止
+    Stopped,
+    /// 心跳
+    Heartbeat,
     /// 错误
     Error(String),
 }
@@ -142,7 +167,7 @@ impl BaseDevice {
 
         let _ = self
             .event_tx
-            .send(DeviceEvent::PowerChanged(self.power_a, self.power_b));
+            .send(DeviceEvent::PowerChanged { channel, power });
         Ok(())
     }
 
@@ -196,10 +221,13 @@ mod tests {
 
     #[test]
     fn test_device_event_power_changed() {
-        let event = DeviceEvent::PowerChanged(50, 60);
-        if let DeviceEvent::PowerChanged(a, b) = event {
-            assert_eq!(a, 50);
-            assert_eq!(b, 60);
+        let event = DeviceEvent::PowerChanged {
+            channel: 0,
+            power: 50,
+        };
+        if let DeviceEvent::PowerChanged { channel, power } = event {
+            assert_eq!(channel, 0);
+            assert_eq!(power, 50);
         } else {
             panic!("Expected PowerChanged");
         }
@@ -227,11 +255,14 @@ mod tests {
 
     #[test]
     fn test_device_event_clone() {
-        let event = DeviceEvent::PowerChanged(10, 20);
+        let event = DeviceEvent::PowerChanged {
+            channel: 0,
+            power: 10,
+        };
         let cloned = event.clone();
-        if let DeviceEvent::PowerChanged(a, b) = cloned {
-            assert_eq!(a, 10);
-            assert_eq!(b, 20);
+        if let DeviceEvent::PowerChanged { channel, power } = cloned {
+            assert_eq!(channel, 0);
+            assert_eq!(power, 10);
         } else {
             panic!("Expected PowerChanged");
         }
@@ -329,9 +360,9 @@ mod tests {
         dev.set_power(0, 30).unwrap();
 
         let event = rx.try_recv().unwrap();
-        if let DeviceEvent::PowerChanged(a, b) = event {
-            assert_eq!(a, 30);
-            assert_eq!(b, 0);
+        if let DeviceEvent::PowerChanged { channel, power } = event {
+            assert_eq!(channel, 0);
+            assert_eq!(power, 30);
         } else {
             panic!("Expected PowerChanged");
         }

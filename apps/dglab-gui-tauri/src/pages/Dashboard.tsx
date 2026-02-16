@@ -1,16 +1,37 @@
+import { useState, useEffect } from "react";
 import { useDeviceStore } from "@/stores/deviceStore";
 import { useAppStore } from "@/stores/appStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { useNavigate } from "react-router-dom";
-import { Activity, Bluetooth, Power, Settings } from "lucide-react";
+import { Activity, Bluetooth, Power, Settings, Play, Square, AlertCircle, Zap, Wand2 } from "lucide-react";
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const { currentDevice, deviceState, isConnected } = useDeviceStore();
+  const {
+    currentDevice,
+    deviceState,
+    isConnected,
+    powerA,
+    powerB,
+    setPower,
+    startDevice,
+    stopDevice,
+    emergencyStop,
+  } = useDeviceStore();
   const { toggleTheme } = useAppStore();
+
+  const [localPowerA, setLocalPowerA] = useState(powerA);
+  const [localPowerB, setLocalPowerB] = useState(powerB);
+  const [isRunning, setIsRunning] = useState(false);
+
+  useEffect(() => {
+    setLocalPowerA(powerA);
+    setLocalPowerB(powerB);
+  }, [powerA, powerB]);
 
   const getStateVariant = (state: string) => {
     switch (state) {
@@ -22,6 +43,55 @@ export function Dashboard() {
         return "destructive";
       default:
         return "outline";
+    }
+  };
+
+  const handlePowerChangeA = async (value: number[]) => {
+    const newValue = value[0];
+    setLocalPowerA(newValue);
+    try {
+      await setPower("A", newValue);
+    } catch (error) {
+      console.error("Failed to set power A:", error);
+    }
+  };
+
+  const handlePowerChangeB = async (value: number[]) => {
+    const newValue = value[0];
+    setLocalPowerB(newValue);
+    try {
+      await setPower("B", newValue);
+    } catch (error) {
+      console.error("Failed to set power B:", error);
+    }
+  };
+
+  const handleStart = async () => {
+    try {
+      await startDevice();
+      setIsRunning(true);
+    } catch (error) {
+      console.error("Failed to start device:", error);
+    }
+  };
+
+  const handleStop = async () => {
+    try {
+      await stopDevice();
+      setIsRunning(false);
+    } catch (error) {
+      console.error("Failed to stop device:", error);
+    }
+  };
+
+  const handleEmergencyStop = async () => {
+    try {
+      await emergencyStop();
+      setIsRunning(false);
+      setLocalPowerA(0);
+      setLocalPowerB(0);
+    } catch (error) {
+      console.error("Emergency stop failed:", error);
     }
   };
 
@@ -60,7 +130,8 @@ export function Dashboard() {
         </CardHeader>
         <CardContent>
           {isConnected && currentDevice ? (
-            <div className="space-y-2">
+            <div className="space-y-6">
+              {/* Device Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium">设备名称</p>
@@ -71,16 +142,120 @@ export function Dashboard() {
                   <p className="text-sm text-muted-foreground font-mono">{currentDevice.id}</p>
                 </div>
               </div>
-              <Separator className="my-4" />
-              <div className="flex gap-2">
-                <Button onClick={() => navigate("/control")} className="flex-1">
-                  <Power className="mr-2 h-4 w-4" />
-                  功率控制
-                </Button>
-                <Button variant="outline" onClick={() => navigate("/scanner")} className="flex-1">
-                  <Bluetooth className="mr-2 h-4 w-4" />
-                  切换设备
-                </Button>
+              
+              <Separator />
+              
+              {/* Power Control */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">功率控制</h3>
+                  <Badge variant={isRunning ? "default" : "secondary"}>
+                    {isRunning ? "运行中" : "已停止"}
+                  </Badge>
+                </div>
+                
+                {/* Channel A */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-blue-500" />
+                      <span className="font-medium">通道 A</span>
+                    </div>
+                    <Badge variant="outline" className="text-base font-bold">
+                      {localPowerA}
+                    </Badge>
+                  </div>
+                  <Slider
+                    value={[localPowerA]}
+                    onValueChange={handlePowerChangeA}
+                    max={200}
+                    step={1}
+                    disabled={!isConnected}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>0</span>
+                    <span>100</span>
+                    <span>200</span>
+                  </div>
+                </div>
+                
+                {/* Channel B */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-purple-500" />
+                      <span className="font-medium">通道 B</span>
+                    </div>
+                    <Badge variant="outline" className="text-base font-bold">
+                      {localPowerB}
+                    </Badge>
+                  </div>
+                  <Slider
+                    value={[localPowerB]}
+                    onValueChange={handlePowerChangeB}
+                    max={200}
+                    step={1}
+                    disabled={!isConnected}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>0</span>
+                    <span>100</span>
+                    <span>200</span>
+                  </div>
+                </div>
+                
+                {/* Control Buttons */}
+                <div className="grid grid-cols-2 gap-2 pt-4">
+                  <Button
+                    onClick={handleStart}
+                    disabled={isRunning || !isConnected}
+                    size="sm"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    启动
+                  </Button>
+                  <Button
+                    onClick={handleStop}
+                    disabled={!isRunning || !isConnected}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    <Square className="mr-2 h-4 w-4" />
+                    停止
+                  </Button>
+                  <Button
+                    onClick={handleEmergencyStop}
+                    disabled={!isConnected}
+                    variant="destructive"
+                    size="sm"
+                  >
+                    <AlertCircle className="mr-2 h-4 w-4" />
+                    紧急停止
+                  </Button>
+                  <Button
+                    onClick={() => navigate("/waveform")}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    波形设置
+                  </Button>
+                </div>
+                
+                {/* Switch Device Button */}
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate("/scanner")}
+                    className="w-full"
+                    size="sm"
+                  >
+                    <Bluetooth className="mr-2 h-4 w-4" />
+                    切换设备
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (

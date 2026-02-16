@@ -33,7 +33,7 @@ export function PowerControl() {
   // Redirect if not connected
   useEffect(() => {
     if (!isConnected) {
-      navigate("/scanner");
+      navigate("/");
     }
   }, [isConnected, navigate]);
 

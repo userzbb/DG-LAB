@@ -53,6 +53,10 @@ pub enum WsError {
     #[error("Timeout")]
     Timeout,
 
+    /// 无效消息
+    #[error("Invalid message: {0}")]
+    InvalidMessage(String),
+
     /// 其他错误
     #[error("Other error: {0}")]
     Other(String),

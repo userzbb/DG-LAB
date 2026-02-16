@@ -219,6 +219,12 @@ impl BleWsBridgeDevice {
                 // 解析控制指令
                 Self::handle_control_message(inner, &msg.message).await;
             }
+            WsEvent::BindTimeout => {
+                warn!("WebSocket bind timeout");
+            }
+            WsEvent::Closed => {
+                info!("WebSocket connection closed");
+            }
         }
     }
 
@@ -328,8 +334,8 @@ impl BleWsBridgeDevice {
     /// 处理 BLE 设备事件（同步状态到 WebSocket）
     async fn handle_ble_event(inner: &Arc<BridgeInner>, event: DeviceEvent) {
         match event {
-            DeviceEvent::PowerChanged(power_a, power_b) => {
-                debug!("BLE power changed: A={}, B={}", power_a, power_b);
+            DeviceEvent::StatusReport { power_a, power_b } => {
+                debug!("BLE power status: A={}, B={}", power_a, power_b);
                 // 同步强度到 WebSocket
                 Self::sync_strength_to_ws(inner, power_a, power_b).await;
             }
@@ -352,9 +358,16 @@ impl BleWsBridgeDevice {
 
             // 获取 client_id 和 target_id
             if let (Some(client_id), Some(target_id)) = (c.client_id().await, c.target_id().await) {
+                // 从 BLE 设备获取实际的强度上限
+                let (max_a, max_b) = {
+                    let ble_device = inner.ble_device.lock().await;
+                    let info = ble_device.info();
+                    (info.max_power_a, info.max_power_b)
+                };
+
                 // 发送当前强度状态
                 // 格式: "strength-{A}+{B}+{maxA}+{maxB}"
-                let message = format!("strength-{}+{}+200+200", power_a, power_b);
+                let message = format!("strength-{}+{}+{}+{}", power_a, power_b, max_a, max_b);
                 let ws_msg = WsMessage::new(MessageType::Msg, client_id, target_id, message);
 
                 if let Err(e) = c.send(&ws_msg).await {
@@ -380,6 +393,8 @@ impl Device for BleWsBridgeDevice {
     }
 
     fn info(&self) -> DeviceInfo {
+        // 由于 info() 不是异步方法，我们无法获取锁
+        // 使用默认值，实际强度上限会在 sync_strength_to_ws 中正确获取
         DeviceInfo {
             id: self.base.id().to_string(),
             name: self.base.name().to_string(),
@@ -389,8 +404,8 @@ impl Device for BleWsBridgeDevice {
             battery_level: 100,
             power_a: self.base.power_a(),
             power_b: self.base.power_b(),
-            max_power_a: 200,
-            max_power_b: 200,
+            max_power_a: 200, // 默认值，实际值在 sync_strength_to_ws 中获取
+            max_power_b: 200, // 默认值，实际值在 sync_strength_to_ws 中获取
         }
     }
 
@@ -404,22 +419,45 @@ impl Device for BleWsBridgeDevice {
         self.base.set_state(DeviceState::Connecting);
 
         // 1. 连接 WebSocket
-        let client = WsClient::connect(&self.inner.server_url)
+        let mut client = WsClient::connect(&self.inner.server_url)
             .await
             .map_err(|e| CoreError::Other(format!("WebSocket connect error: {}", e)))?;
+
+        // 2. 等待绑定（参考 hyperzlib 项目，超时 20 秒）
+        info!("Waiting for WebSocket binding...");
+        let bind_timeout_secs = 20;
+
+        match client.wait_for_bind(bind_timeout_secs).await {
+            Ok(true) => {
+                info!("WebSocket binding successful");
+            }
+            Ok(false) => {
+                let err_msg = format!(
+                    "WebSocket binding timeout after {} seconds",
+                    bind_timeout_secs
+                );
+                error!("{}", err_msg);
+                return Err(CoreError::Other(err_msg));
+            }
+            Err(e) => {
+                let err_msg = format!("WebSocket binding error: {}", e);
+                error!("{}", err_msg);
+                return Err(CoreError::Other(err_msg));
+            }
+        }
 
         {
             let mut ws_client = self.inner.ws_client.lock().await;
             *ws_client = Some(client);
         }
 
-        // 2. 启动任务
+        // 3. 启动任务
         self.start_ws_receive_task();
         self.start_sync_task();
 
         self.base.set_state(DeviceState::Connected);
 
-        info!("BLE-WS Bridge device connected");
+        info!("BLE-WS Bridge device connected and bound");
         Ok(())
     }
 

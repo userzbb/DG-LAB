@@ -134,9 +134,9 @@ pub async fn execute(cli: &mut DglabCli, args: BridgeArgs) -> Result<()> {
                         dglab_core::device::DeviceEvent::StateChanged(state) => {
                             println!("🔄 状态变化: {:?}", state);
                         }
-                        dglab_core::device::DeviceEvent::PowerChanged(a, b) => {
+                        dglab_core::device::DeviceEvent::StatusReport { power_a, power_b } => {
                             if args.verbose {
-                                println!("⚡ 强度变化: A={}, B={}", a, b);
+                                println!("⚡ 强度状态: A={}, B={}", power_a, power_b);
                             }
                         }
                         dglab_core::device::DeviceEvent::BatteryUpdated(level) => {

@@ -132,6 +132,12 @@ export const useDeviceStore = create<DeviceStore>((set, get) => ({
   },
 
   connectToDevice: async (deviceId: string, deviceName: string) => {
+    const { isConnected } = get();
+    if (isConnected) {
+      toast.info("设备已连接", "请先断开当前设备");
+      return;
+    }
+
     set({ deviceState: DeviceState.Connecting });
     const loadingToast = toast.loading("正在连接设备...");
     try {

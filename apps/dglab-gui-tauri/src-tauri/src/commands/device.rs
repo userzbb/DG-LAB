@@ -84,6 +84,17 @@ pub async fn connect_ble_device(
 
     info!("Connecting to BLE device: {} ({})", device_name, device_id);
 
+    // 检查是否已连接设备
+    {
+        let manager = state.session_manager.read().await;
+        let devices = manager.list_devices().await;
+        if !devices.is_empty() {
+            let error_msg = "已有设备连接，请先断开当前设备".to_string();
+            tracing::warn!("{}", error_msg);
+            return Err(error_msg);
+        }
+    }
+
     // 创建新的 BLE manager（最稳定的方案）
     let ble_manager = Arc::new(BleManager::new().await.map_err(|e| {
         let error_msg = format!("创建蓝牙管理器失败: {}. 请检查蓝牙是否已启用", e);
