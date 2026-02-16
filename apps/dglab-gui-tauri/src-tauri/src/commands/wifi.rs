@@ -110,8 +110,7 @@ pub async fn wifi_check_binding(
     // 如果已连接说明绑定成功
     Ok(matches!(
         state,
-        dglab_core::device::DeviceState::Connected
-            | dglab_core::device::DeviceState::Running
+        dglab_core::device::DeviceState::Connected | dglab_core::device::DeviceState::Running
     ))
 }
 
