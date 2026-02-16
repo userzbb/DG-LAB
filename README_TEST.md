@@ -2,7 +2,32 @@
 
 ## 快速开始 (推荐使用 uv)
 
-### 1. 安装 uv
+### 1. 下载预编译二进制（推荐）
+
+访问 [Releases 页面](https://github.com/userzbb/DG-LAB/releases) 下载最新版本：
+
+**Windows**:
+- 下载 `dglab-cli-windows-x64.zip`
+- 解压到任意目录
+- 双击 `dglab.exe` 或在命令行中运行
+
+**Linux**:
+```bash
+# 下载并解压
+wget https://github.com/userzbb/DG-LAB/releases/latest/download/dglab-cli-linux-x64.tar.gz
+tar xzf dglab-cli-linux-x64.tar.gz
+chmod +x dglab
+```
+
+**macOS**:
+```bash
+# 下载并解压
+curl -LO https://github.com/userzbb/DG-LAB/releases/latest/download/dglab-cli-macos-universal.tar.gz
+tar xzf dglab-cli-macos-universal.tar.gz
+chmod +x dglab
+```
+
+### 2. 安装 uv（用于测试脚本）
 
 **Windows (PowerShell)**:
 ```powershell
@@ -14,22 +39,26 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### 2. 启动桥接程序
+### 3. 启动桥接程序
 
-在 Windows 上编译并运行:
+**使用预编译版本（推荐）**:
 ```cmd
-cargo build --release
-.\target\release\dglab.exe bridge --device 47L121000
+# Windows
+.\dglab.exe bridge --device 47L121000
+
+# Linux/macOS
+./dglab bridge --device 47L121000
 ```
 
-或使用预编译的 exe:
-```cmd
-.\dglab.exe bridge --device 47L121000
+**从源码编译**:
+```bash
+cargo build --release
+./target/release/dglab bridge --device 47L121000
 ```
 
 **记下显示的 Client ID**（在二维码 URL 的 `#` 后面）
 
-### 3. 运行测试脚本
+### 4. 运行测试脚本
 
 **使用 uv (推荐，无需手动安装依赖)**:
 
@@ -55,11 +84,11 @@ pip install pydglab-ws
 python test-bridge.py
 ```
 
-### 4. 输入 Client ID
+### 5. 输入 Client ID
 
 测试脚本启动后，会提示输入目标 Client ID，将桥接程序显示的 Client ID 粘贴进去。
 
-### 5. 开始测试
+### 6. 开始测试
 
 绑定成功后，你可以使用以下命令：
 
