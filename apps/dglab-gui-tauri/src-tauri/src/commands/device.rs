@@ -100,7 +100,7 @@ pub async fn connect_ble_device(
 
     // 添加到会话管理器
     {
-        let mut manager = state.session_manager.write().await;
+        let manager = state.session_manager.write().await;
         manager
             .add_device(Box::new(coyote))
             .await
