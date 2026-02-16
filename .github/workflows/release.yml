@@ -126,33 +126,32 @@ jobs:
         working-directory: apps/dglab-gui-tauri
         run: npm ci
 
-      - name: Build Tauri app
+      - name: Build Tauri app (no bundle, binary only for Arch Linux)
         working-directory: apps/dglab-gui-tauri
-        run: npm run tauri build
+        run: npm run tauri build -- --no-bundle
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
 
       - name: List build artifacts
         run: |
-          echo "=== AppImage ==="
-          ls -lh target/release/bundle/appimage/*.AppImage || true
-          echo "=== DEB ==="
-          ls -lh target/release/bundle/deb/*.deb || true
+          echo "=== Binary ==="
+          ls -lh target/release/dglab-gui-tauri || true
 
-      - name: Upload AppImage
+      - name: Create Arch Linux package structure
+        run: |
+          mkdir -p arch-pkg
+          cp target/release/dglab-gui-tauri arch-pkg/
+          chmod +x arch-pkg/dglab-gui-tauri
+          cd arch-pkg
+          tar czf dglab-gui-tauri-linux-x64-bin.tar.gz dglab-gui-tauri
+          ls -lh
+
+      - name: Upload Linux binary for Arch
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.create-release.outputs.version }}
-          files: target/release/bundle/appimage/*.AppImage
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload DEB package
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ needs.create-release.outputs.version }}
-          files: target/release/bundle/deb/*.deb
+          files: arch-pkg/dglab-gui-tauri-linux-x64-bin.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
