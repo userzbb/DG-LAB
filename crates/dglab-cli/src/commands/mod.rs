@@ -23,8 +23,8 @@ pub use wifi::WifiArgs;
 
 /// CLI 应用
 pub struct DglabCli {
-    /// BLE 管理器
-    ble_manager: Arc<BleManager>,
+    /// BLE 管理器（可选，延迟初始化）
+    ble_manager: Option<Arc<BleManager>>,
     /// 会话管理器
     session_manager: SessionManager,
     /// 预设管理器
@@ -32,27 +32,38 @@ pub struct DglabCli {
 }
 
 impl DglabCli {
-    /// 创建新的 CLI 应用
+    /// 创建新的 CLI 应用（不初始化 BLE）
     pub async fn new() -> Result<Self> {
-        let ble_manager = Arc::new(BleManager::new().await?);
         let session_manager = SessionManager::new();
         let mut preset_manager = PresetManager::default_dir()?;
         preset_manager.initialize().await?;
 
         Ok(Self {
-            ble_manager,
+            ble_manager: None,
             session_manager,
             preset_manager,
         })
     }
 
+    /// 获取或初始化 BLE 管理器
+    async fn get_or_init_ble(&mut self) -> Result<&Arc<BleManager>> {
+        if self.ble_manager.is_none() {
+            self.ble_manager = Some(Arc::new(BleManager::new().await?));
+        }
+        Ok(self.ble_manager.as_ref().unwrap())
+    }
+
     /// 扫描设备
     pub async fn scan(&mut self, args: ScanArgs) -> Result<()> {
+        // 延迟初始化 BLE
+        self.get_or_init_ble().await?;
         scan::execute(self, args).await
     }
 
     /// 连接设备
     pub async fn connect(&mut self, args: ConnectArgs) -> Result<()> {
+        // 延迟初始化 BLE
+        self.get_or_init_ble().await?;
         connect::execute(self, args).await
     }
 
@@ -82,8 +93,8 @@ impl DglabCli {
     }
 
     /// 获取 BLE 管理器
-    pub fn ble_manager(&self) -> &Arc<BleManager> {
-        &self.ble_manager
+    pub fn ble_manager(&self) -> Option<&Arc<BleManager>> {
+        self.ble_manager.as_ref()
     }
 
     /// 获取会话管理器

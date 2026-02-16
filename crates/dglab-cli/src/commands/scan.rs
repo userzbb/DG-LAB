@@ -18,15 +18,17 @@ pub struct ScanArgs {
 pub async fn execute(app: &mut DglabCli, args: ScanArgs) -> crate::error::Result<()> {
     info!("Starting BLE scan for {} seconds...", args.duration);
 
-    app.ble_manager().start_scan().await?;
+    let ble_manager = app.ble_manager().expect("BLE manager should be initialized");
+    
+    ble_manager.start_scan().await?;
 
     // 等待扫描
     tokio::time::sleep(Duration::from_secs(args.duration)).await;
 
-    app.ble_manager().stop_scan().await?;
+    ble_manager.stop_scan().await?;
 
     // 获取扫描结果
-    let results = app.ble_manager().get_scan_results().await?;
+    let results = ble_manager.get_scan_results().await?;
 
     println!("\nFound {} devices:", results.len());
     println!("{}", "-".repeat(60));

@@ -38,11 +38,14 @@ pub async fn execute(app: &mut DglabCli, args: ConnectArgs) -> crate::error::Res
 
     // 先扫描获取设备列表
     info!("Scanning for devices...");
-    app.ble_manager().start_scan().await?;
+    
+    let ble_manager = app.ble_manager().expect("BLE manager should be initialized");
+    
+    ble_manager.start_scan().await?;
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-    app.ble_manager().stop_scan().await?;
+    ble_manager.stop_scan().await?;
 
-    let results = app.ble_manager().get_scan_results().await?;
+    let results = ble_manager.get_scan_results().await?;
 
     if results.is_empty() {
         println!("No devices found");
@@ -93,7 +96,7 @@ pub async fn execute(app: &mut DglabCli, args: ConnectArgs) -> crate::error::Res
     );
 
     // 连接设备
-    let device = app.ble_manager().connect(&device_info.id).await?;
+    let device = ble_manager.connect(&device_info.id).await?;
     let mut coyote = CoyoteDevice::new(device_info.id.clone(), device_info.name.clone());
     coyote.set_protocol_device(device);
     coyote.connect().await?;

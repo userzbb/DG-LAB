@@ -29,7 +29,7 @@ tokio-rustls = "0.25"
 rustls-native-certs = "0.7"
 futures-util = "0.3"
 websocket-codec = "0.5"
-tokio-tungstenite = "0.21"
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
 url = "2.5"
 
 # Serialization
