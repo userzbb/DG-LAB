@@ -129,6 +129,26 @@ npm run tauri dev
 npm run tauri build
 ```
 
+### 安装 Git Hooks (推荐)
+
+为了确保代码质量，建议安装 pre-commit hook，它会在每次提交前自动检查代码格式和质量：
+
+```bash
+# 安装 pre-commit hook
+./scripts/install-hooks.sh
+```
+
+**Hook 功能**:
+- ✅ 自动检查 Rust 代码格式 (rustfmt)
+- ✅ 自动运行 Clippy 检查
+- ✅ 自动检查编译
+- ✅ 自动检查 TypeScript 类型
+
+**如需跳过检查**（不推荐）:
+```bash
+git commit --no-verify
+```
+
 ### 验证安装
 
 ```bash

@@ -1,0 +1,75 @@
+#!/bin/bash
+# DG-LAB Pre-commit Hook
+# 在提交前自动检查代码格式和质量
+
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# 检查是否有 Rust 文件变更
+rust_files_changed=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.rs$' || true)
+
+if [ -n "$rust_files_changed" ]; then
+    echo "📝 Rust 文件已更改，运行检查..."
+    
+    # 1. 代码格式检查
+    echo "  ├─ 检查代码格式 (rustfmt)..."
+    if ! cargo fmt --all -- --check; then
+        echo -e "${RED}❌ 代码格式不符合规范！${NC}"
+        echo -e "${YELLOW}💡 运行以下命令自动修复：${NC}"
+        echo "   cargo fmt --all"
+        echo ""
+        echo -e "${YELLOW}或者跳过此检查（不推荐）：${NC}"
+        echo "   git commit --no-verify"
+        exit 1
+    fi
+    echo -e "${GREEN}  ✓ 代码格式检查通过${NC}"
+    
+    # 2. Clippy 检查
+    echo "  ├─ 运行 Clippy 检查..."
+    if ! cargo clippy --all-targets --all-features -- -D warnings 2>&1 | grep -v "Checking\|Compiling\|Finished"; then
+        echo -e "${RED}❌ Clippy 发现警告或错误！${NC}"
+        echo -e "${YELLOW}💡 请修复 Clippy 警告后再提交${NC}"
+        echo ""
+        echo -e "${YELLOW}或者跳过此检查（不推荐）：${NC}"
+        echo "   git commit --no-verify"
+        exit 1
+    fi
+    echo -e "${GREEN}  ✓ Clippy 检查通过${NC}"
+    
+    # 3. 快速编译检查
+    echo "  └─ 检查是否能编译..."
+    if ! cargo check --workspace --quiet 2>&1 | grep -v "Checking\|Finished"; then
+        echo -e "${RED}❌ 代码无法编译！${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}  ✓ 编译检查通过${NC}"
+else
+    echo "ℹ️  没有 Rust 文件变更，跳过 Rust 检查"
+fi
+
+# 检查是否有 TypeScript/JavaScript 文件变更
+ts_files_changed=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx)$' | grep "apps/dglab-gui-tauri" || true)
+
+if [ -n "$ts_files_changed" ]; then
+    echo "📝 TypeScript 文件已更改，运行检查..."
+    
+    # TypeScript 类型检查
+    echo "  └─ 检查 TypeScript 类型..."
+    if ! (cd apps/dglab-gui-tauri && npm run type-check); then
+        echo -e "${RED}❌ TypeScript 类型检查失败！${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}  ✓ TypeScript 类型检查通过${NC}"
+else
+    echo "ℹ️  没有 TypeScript 文件变更，跳过 TypeScript 检查"
+fi
+
+echo -e "${GREEN}✅ 所有检查通过，准备提交...${NC}"
+exit 0
