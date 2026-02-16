@@ -345,10 +345,14 @@ impl Device for CoyoteDevice {
 
         self.base.set_state(DeviceState::Connecting);
 
-        // 如果有 BLE 管理器，使用它连接
-        if let Some(manager) = &self.ble_manager {
-            let device = manager.connect(self.base.id()).await?;
-            self.protocol_device = Some(device);
+        // 如果还没有 protocol_device，且有 BLE 管理器，使用它连接
+        if self.protocol_device.is_none() {
+            if let Some(manager) = &self.ble_manager {
+                let device = manager.connect(self.base.id()).await?;
+                self.protocol_device = Some(device);
+            } else {
+                return Err(CoreError::DeviceNotConnected);
+            }
         }
 
         // 连接后发送 BF 配置（设置软上限为最大值）

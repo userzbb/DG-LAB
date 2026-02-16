@@ -2,14 +2,44 @@
 
 本文档提供 DG-LAB 控制器在各平台的详细安装说明。
 
+## 🚀 快速开始
+
+### 当前可用版本 (v0.1.4)
+
+| 平台 | CLI 工具 | GUI 应用 | 状态 |
+|------|---------|---------|------|
+| **Linux** | ✅ 可用 | ✅ 可用 | 完整支持 |
+| **Windows** | ✅ 可用 | ⏳ 准备中 | CLI 可用，推荐使用桥接模式 |
+| **macOS** | ✅ 可用 | ⏳ 准备中 | CLI 可用，推荐使用桥接模式 |
+
+**推荐使用**：
+- **Linux 用户**：下载 [GUI 应用](#linux) 获得完整图形界面体验
+- **Windows/macOS 用户**：下载 [CLI 工具](#cli-工具推荐用于桥接功能) 使用桥接模式连接设备
+- **所有用户**：v0.1.5 即将发布，将包含所有平台的完整 GUI 支持
+
+### 桥接模式是什么？
+
+桥接模式允许你的电脑替代官方 DG-LAB APP，通过蓝牙连接设备并同时连接 WebSocket 服务器，让第三方控制器（如 Coyote Remote）能够远程控制你的 DG-LAB 设备。
+
+**架构**：
+```
+第三方控制端 → Socket 服务器 ← 本程序 ← BLE ← DG-LAB 设备
+```
+
+---
+
 ## 目录
 
+- [快速开始](#快速开始)
 - [系统要求](#系统要求)
 - [预编译安装包 (推荐)](#预编译安装包-推荐)
+  - [Windows](#windows)
+  - [macOS](#macos)
+  - [Linux](#linux)
 - [从源码构建](#从源码构建)
-  - [Windows](#windows-从源码构建)
-  - [macOS](#macos-从源码构建)
-  - [Linux](#linux-从源码构建)
+  - [Windows 从源码构建](#windows-从源码构建)
+  - [macOS 从源码构建](#macos-从源码构建)
+  - [Linux 从源码构建](#linux-从源码构建)
 - [安装 CLI 工具](#安装-cli-工具)
 - [验证安装](#验证安装)
 - [故障排除](#故障排除)
@@ -56,126 +86,253 @@
 
 ### Windows
 
-1. **下载安装程序**
-   - 访问 [Releases 页面](https://github.com/your-username/DG_LAB/releases)
-   - 下载最新版本的 `DG-LAB-Setup-x64.exe`
+#### GUI 应用
 
-2. **运行安装程序**
-   - 双击 `.exe` 文件
-   - 根据安装向导提示操作
-   - 选择安装目录 (默认: `C:\Program Files\DG-LAB\`)
-   - 勾选"创建桌面快捷方式"
+> **注意**：Windows GUI 预编译版本正在准备中，当前版本 (v0.1.4) 仅提供 Linux 版本。请使用以下方式：
+> 1. **推荐**：使用 CLI 工具的桥接功能（见下方 CLI 工具安装）
+> 2. 等待 v0.1.5 发布（将包含所有平台的 GUI 版本）
+> 3. [从源码构建](#windows-从源码构建) GUI 应用
 
-3. **首次运行**
-   - 双击桌面图标或开始菜单中的"DG-LAB"
-   - Windows Defender 可能提示安全警告，选择"仍要运行"
+#### CLI 工具（推荐用于桥接功能）
 
-#### 便携版 (无需安装)
+**CLI 工具提供完整的桥接模式支持**，可以替代官方 APP 连接设备。
 
-1. 下载 `DG-LAB-Portable-x64.zip`
-2. 解压到任意目录
-3. 运行 `DG-LAB.exe`
+1. **下载预编译版本**
+   ```powershell
+   # 下载地址
+   https://github.com/userzbb/DG-LAB/releases/download/v0.1.4/dglab-cli-windows-x64.zip
+   ```
+
+2. **解压并使用**
+   ```powershell
+   # 解压到任意目录
+   Expand-Archive dglab-cli-windows-x64.zip -DestinationPath .\dglab-cli
+   
+   # 进入目录
+   cd dglab-cli
+   
+   # 查看版本
+   .\dglab.exe --version
+   
+   # 扫描附近设备
+   .\dglab.exe scan
+   
+   # 启动桥接模式（替代官方 APP）
+   .\dglab.exe bridge --device 47L121000
+   ```
+
+3. **桥接模式使用**
+
+   启动桥接后，程序会：
+   - 通过蓝牙连接到 DG-LAB 设备
+   - 连接到 WebSocket 服务器 (`wss://dg-lab-socket.nanami.tech/ws`)
+   - 注册设备名称为 `coyote-3-bridge`（或你指定的名称）
+   
+   然后你可以使用任何支持 DG-LAB Socket 协议的第三方控制器（如 Coyote Remote）连接到 `coyote-3-bridge` 进行控制。
+
+   ```powershell
+   # 使用自定义设备名称
+   .\dglab.exe bridge --device 47L121000 --name "my-device"
+   
+   # 使用自定义 WebSocket 服务器
+   .\dglab.exe bridge --device 47L121000 --ws-url "wss://your-server.com/ws"
+   
+   # 查看更多选项
+   .\dglab.exe bridge --help
+   ```
+
+4. **添加到 PATH（可选）**
+   ```powershell
+   # 复制到用户 bin 目录
+   $binDir = "$env:USERPROFILE\bin"
+   New-Item -ItemType Directory -Force -Path $binDir
+   Copy-Item dglab.exe $binDir\
+   
+   # 添加到 PATH
+   [Environment]::SetEnvironmentVariable(
+       "Path",
+       [Environment]::GetEnvironmentVariable("Path", "User") + ";$binDir",
+       "User"
+   )
+   
+   # 重启终端后验证
+   dglab --version
+   ```
+
+
 
 ### macOS
 
-1. **下载安装包**
-   - 访问 [Releases 页面](https://github.com/your-username/DG_LAB/releases)
-   - 下载 `DG-LAB_x64.dmg` (Intel) 或 `DG-LAB_aarch64.dmg` (Apple Silicon)
+#### GUI 应用
 
-2. **安装应用**
-   - 双击 `.dmg` 文件打开
-   - 将 `DG-LAB.app` 拖动到 `Applications` 文件夹
-   - 卸载磁盘映像
+> **注意**：macOS GUI 预编译版本正在准备中，当前版本 (v0.1.4) 仅提供 Linux 版本。请使用以下方式：
+> 1. **推荐**：使用 CLI 工具的桥接功能（见下方 CLI 工具安装）
+> 2. 等待 v0.1.5 发布（将包含所有平台的 GUI 版本）
+> 3. [从源码构建](#macos-从源码构建) GUI 应用
 
-3. **首次运行**
-   - 打开 `应用程序` 文件夹，找到 `DG-LAB`
-   - 右键点击 → 选择"打开" (绕过 Gatekeeper 检查)
-   - 如果提示"无法打开"，前往 `系统偏好设置` → `安全性与隐私` → 点击"仍要打开"
+#### CLI 工具
 
-4. **赋予蓝牙权限**
-   - 首次使用蓝牙功能时会提示
-   - 前往 `系统偏好设置` → `安全性与隐私` → `隐私` → `蓝牙`
-   - 勾选 `DG-LAB`
+1. **下载预编译版本**
+   ```bash
+   # 下载最新版本
+   curl -LO https://github.com/userzbb/DG-LAB/releases/latest/download/dglab-cli-macos-universal.tar.gz
+   ```
+
+2. **解压并安装**
+   ```bash
+   # 解压
+   tar xzf dglab-cli-macos-universal.tar.gz
+   
+   # 安装到系统（需要管理员权限）
+   sudo install -m 755 dglab /usr/local/bin/
+   
+   # 或安装到用户目录（无需管理员权限）
+   mkdir -p ~/bin
+   install -m 755 dglab ~/bin/
+   # 确保 ~/bin 在 PATH 中
+   echo 'export PATH="$HOME/bin:$PATH"' >> ~/.zshrc
+   source ~/.zshrc
+   ```
+
+3. **验证安装**
+   ```bash
+   dglab --version
+   dglab scan
+   dglab bridge --device 47L121000
+   ```
+
+4. **首次运行权限**
+   ```bash
+   # 如果提示无法验证开发者
+   sudo xattr -rd com.apple.quarantine /usr/local/bin/dglab
+   # 或
+   sudo xattr -rd com.apple.quarantine ~/bin/dglab
+   ```
 
 ### Linux
 
-#### Debian / Ubuntu / Linux Mint
+#### 预编译二进制 (推荐，快速安装)
+
+**适用于所有发行版**：
 
 ```bash
-# 下载 .deb 包
-wget https://github.com/your-username/DG_LAB/releases/download/v0.1.0/dglab_0.1.0_amd64.deb
+# 下载最新版本的 CLI 工具
+wget https://github.com/userzbb/DG-LAB/releases/latest/download/dglab-cli-linux-x64.tar.gz
 
-# 安装
-sudo dpkg -i dglab_0.1.0_amd64.deb
+# 解压
+tar xzf dglab-cli-linux-x64.tar.gz
 
-# 如果有依赖问题，运行：
-sudo apt-get install -f
+# 安装到系统
+sudo install -m 755 dglab /usr/local/bin/
 
-# 启动应用
-dglab-gui
+# 验证安装
+dglab --version
+
+# 使用示例
+dglab scan                          # 扫描设备
+dglab bridge --device 47L121000     # 桥接模式
 ```
 
-#### Fedora / RHEL / CentOS
+**GUI 应用**：
+
+1. **下载预编译版本**
+   ```bash
+   # 下载最新版本
+   wget https://github.com/userzbb/DG-LAB/releases/download/v0.1.4/dglab-gui-tauri-linux-x64-bin.tar.gz
+   ```
+
+2. **解压文件**
+   ```bash
+   # 解压到当前目录
+   tar xzf dglab-gui-tauri-linux-x64-bin.tar.gz
+   
+   # 进入解压后的目录
+   cd dglab-gui-tauri-linux-x64-bin
+   ```
+
+3. **添加执行权限并运行**
+   ```bash
+   # 添加执行权限
+   chmod +x dglab-gui-tauri
+   
+   # 运行应用
+   ./dglab-gui-tauri
+   ```
+
+4. **安装到系统（可选）**
+   ```bash
+   # 复制到系统 bin 目录
+   sudo install -m 755 dglab-gui-tauri /usr/local/bin/
+   
+   # 以后可以直接运行
+   dglab-gui-tauri
+   ```
+
+5. **创建桌面快捷方式（可选）**
+   ```bash
+   # 创建 .desktop 文件
+   cat > ~/.local/share/applications/dglab-gui.desktop << 'EOF'
+   [Desktop Entry]
+   Name=DG-LAB Controller
+   Comment=DG-LAB 设备控制器
+   Exec=/usr/local/bin/dglab-gui-tauri
+   Icon=application-default-icon
+   Terminal=false
+   Type=Application
+   Categories=Utility;
+   EOF
+   
+   # 更新桌面数据库
+   update-desktop-database ~/.local/share/applications/
+   ```
+
+**系统依赖**：
+
+GUI 应用需要以下运行时依赖，请根据你的发行版安装：
+
+**Debian/Ubuntu**:
+```bash
+sudo apt install -y \
+    libwebkit2gtk-4.1-0 \
+    libayatana-appindicator3-1 \
+    libdbus-1-3 \
+    bluez
+```
+
+**Arch Linux**:
+```bash
+sudo pacman -S webkit2gtk-4.1 libayatana-appindicator bluez bluez-utils
+```
+
+**Fedora**:
+```bash
+sudo dnf install webkit2gtk4.1 libappindicator-gtk3 bluez
+```
+
+**蓝牙权限**：
+
+如果无法扫描 BLE 设备，需要配置蓝牙权限：
 
 ```bash
-# 下载 .rpm 包
-wget https://github.com/your-username/DG_LAB/releases/download/v0.1.0/dglab-0.1.0.x86_64.rpm
+# 方法 1: 将用户添加到 bluetooth 组（推荐）
+sudo usermod -aG bluetooth $USER
+# 注销并重新登录生效
 
-# 安装
-sudo dnf install ./dglab-0.1.0.x86_64.rpm
+# 方法 2: 使用 sudo 运行
+sudo dglab-gui-tauri
 
-# 或使用 yum
-sudo yum localinstall ./dglab-0.1.0.x86_64.rpm
-
-# 启动应用
-dglab-gui
+# 方法 3: 设置 capabilities
+sudo setcap 'cap_net_raw,cap_net_admin+eip' /usr/local/bin/dglab-gui-tauri
 ```
 
-#### Arch Linux / Manjaro
+**已知问题**：
 
-```bash
-# 使用 AUR 助手 (如 yay)
-yay -S dglab-bin
+当前版本 (v0.1.3) 的 BLE 连接可能显示"未知错误"，这个问题在最新代码中已修复，将在 v0.1.5 发布。临时解决方案：使用 CLI 工具的桥接模式。
 
-# 或手动安装
-git clone https://aur.archlinux.org/dglab-bin.git
-cd dglab-bin
-makepkg -si
+#### 其他 Linux 发行版的包管理器安装
 
-# 启动应用
-dglab-gui
-```
-
-#### AppImage (通用格式)
-
-```bash
-# 下载 AppImage
-wget https://github.com/your-username/DG_LAB/releases/download/v0.1.0/DG-LAB-x86_64.AppImage
-
-# 添加执行权限
-chmod +x DG-LAB-x86_64.AppImage
-
-# 运行
-./DG-LAB-x86_64.AppImage
-
-# (可选) 集成到系统
-./DG-LAB-x86_64.AppImage --appimage-extract
-sudo mv squashfs-root /opt/dglab
-sudo ln -s /opt/dglab/AppRun /usr/local/bin/dglab-gui
-```
-
-#### Flatpak
-
-```bash
-# 添加 Flathub 仓库 (如果尚未添加)
-flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-
-# 安装应用
-flatpak install flathub com.dglab.Controller
-
-# 运行
-flatpak run com.dglab.Controller
-```
+> **注意**：以下安装方式（.deb、.rpm、AppImage、Flatpak）正在准备中。
+> 当前请使用上方的 **预编译二进制** 或 **从源码构建** 方式安装。
 
 ---
 

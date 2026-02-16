@@ -12,7 +12,7 @@ pub struct AppState {
     /// 会话管理器
     pub session_manager: Arc<RwLock<SessionManager>>,
     /// BLE 管理器（保持连接）
-    pub ble_managers: Arc<RwLock<HashMap<String, BleManager>>>,
+    pub ble_managers: Arc<RwLock<HashMap<String, Arc<BleManager>>>>,
 }
 
 impl AppState {
