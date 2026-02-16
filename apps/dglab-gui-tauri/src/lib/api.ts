@@ -17,7 +17,12 @@ export async function scanBleDevices(timeoutSecs?: number): Promise<ScannedDevic
   return await invoke<ScannedDevice[]>("scan_ble_devices", { timeoutSecs });
 }
 
-/** 连接设备 */
+/** 连接 BLE 设备（扫描后首次连接） */
+export async function connectBleDevice(deviceId: string, deviceName: string): Promise<DeviceInfo> {
+  return await invoke<DeviceInfo>("connect_ble_device", { deviceId, deviceName });
+}
+
+/** 连接设备（重新连接已存在的设备） */
 export async function connectDevice(deviceId: string): Promise<DeviceInfo> {
   return await invoke<DeviceInfo>("connect_device", { deviceId });
 }

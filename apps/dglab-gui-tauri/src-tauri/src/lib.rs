@@ -33,6 +33,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // Device commands
             commands::device::scan_ble_devices,
+            commands::device::connect_ble_device,
             commands::device::connect_device,
             commands::device::disconnect_device,
             commands::device::get_device_info,

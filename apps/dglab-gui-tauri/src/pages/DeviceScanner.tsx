@@ -19,7 +19,7 @@ export function DeviceScanner() {
   const handleConnect = async (device: ScannedDevice) => {
     setConnectingId(device.id);
     try {
-      await connectToDevice(device.id);
+      await connectToDevice(device.id, device.name);
       navigate("/control");
     } catch (error) {
       console.error("Failed to connect:", error);

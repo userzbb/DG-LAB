@@ -49,8 +49,8 @@ interface DeviceStore {
   // API Actions
   /** 扫描设备 */
   scanDevices: () => Promise<void>;
-  /** 连接到设备 */
-  connectToDevice: (deviceId: string) => Promise<void>;
+  /** 连接到设备（扫描后首次连接） */
+  connectToDevice: (deviceId: string, deviceName: string) => Promise<void>;
   /** 断开设备连接 */
   disconnectDevice: () => Promise<void>;
   /** 设置通道功率 */
@@ -131,11 +131,11 @@ export const useDeviceStore = create<DeviceStore>((set, get) => ({
     }
   },
 
-  connectToDevice: async (deviceId: string) => {
+  connectToDevice: async (deviceId: string, deviceName: string) => {
     set({ deviceState: DeviceState.Connecting });
     const loadingToast = toast.loading("正在连接设备...");
     try {
-      await api.connectDevice(deviceId);
+      await api.connectBleDevice(deviceId, deviceName);
       const deviceInfo = await api.getDeviceInfo(deviceId);
       set({
         currentDevice: deviceInfo,

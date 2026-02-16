@@ -66,7 +66,61 @@ pub async fn scan_ble_devices(timeout_secs: Option<u64>) -> Result<Vec<ScannedDe
     Ok(scanned)
 }
 
-/// 连接设备
+/// 连接 BLE 设备（从扫描结果）
+#[tauri::command]
+pub async fn connect_ble_device(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    device_id: String,
+    device_name: String,
+) -> Result<DeviceInfo, String> {
+    use dglab_core::device::{CoyoteDevice, Device};
+
+    info!("Connecting to BLE device: {} ({})", device_name, device_id);
+
+    // 创建 BLE manager 并连接设备
+    let ble_manager = BleManager::new()
+        .await
+        .map_err(|e| format!("Failed to create BLE manager: {}", e))?;
+
+    let ble_device = ble_manager
+        .connect(&device_id)
+        .await
+        .map_err(|e| format!("Failed to connect to BLE device: {}", e))?;
+
+    // 创建 CoyoteDevice 并设置协议设备
+    let mut coyote = CoyoteDevice::new(device_id.clone(), device_name.clone());
+    coyote.set_protocol_device(ble_device);
+    coyote
+        .connect()
+        .await
+        .map_err(|e| format!("Failed to connect device: {}", e))?;
+
+    let info = coyote.info();
+
+    // 添加到会话管理器
+    {
+        let mut manager = state.session_manager.write().await;
+        manager
+            .add_device(Box::new(coyote))
+            .await
+            .map_err(|e| format!("Failed to add device to session: {}", e))?;
+    }
+
+    // 发送状态变更事件
+    let _ = app.emit(
+        event_names::DEVICE_STATE_CHANGED,
+        DeviceStateChangedEvent {
+            device_id: device_id.clone(),
+            state: DeviceState::Connected,
+        },
+    );
+
+    info!("Successfully connected to device: {}", device_id);
+    Ok(info)
+}
+
+/// 连接设备（已存在于 session manager 中的设备）
 #[tauri::command]
 pub async fn connect_device(
     app: AppHandle,
