@@ -4,6 +4,29 @@
 
 ## 清理脚本
 
+### 推荐：`clean-light.sh` - 轻量清理（日常使用）⭐
+
+只清理不需要的构建产物，**保留 debug 构建缓存**以加速开发：
+- 删除 `target/release/`（如果存在）
+- 删除前端 `dist/`
+- **保留** `target/debug/`（加速增量编译）
+- **保留** `node_modules/`
+
+**使用场景**：
+- ✅ **日常开发推荐**：既节省空间又保持编译速度
+- 不小心运行了 release 构建
+- 清理临时文件
+
+**使用方法**：
+```bash
+./scripts/clean-light.sh
+```
+
+**预期释放空间**：1-2 GB（如果有 release 构建）  
+**保留空间**：5-8 GB（debug 构建缓存）
+
+---
+
 ### `clean.sh` - 完全清理
 
 删除所有构建产物和依赖：
@@ -68,15 +91,29 @@
 
 ### 何时清理？
 
-✅ **推荐清理的情况**：
-- 磁盘空间不足
+#### 开发模式（推荐）
+
+**只运行 dev 模式测试**（cargo run / npm run tauri dev）：
+
+```
+target/debug/     → 5-8 GB  （保留，加速编译）
+target/release/   → 不生成   （不做 release 构建）
+```
+
+✅ **推荐清理策略**：
+- **日常**：运行 `./scripts/clean-light.sh`（清理临时文件）
+- **每月或磁盘不足时**：运行 `./scripts/clean-build.sh`（完全清理后重新构建）
+- **依赖有问题时**：运行 `./scripts/clean.sh`（包括 node_modules）
+
+✅ **推荐保留的情况**：
+- ✅ 正常开发中（保留 target/debug/ 加速增量编译）
+- ✅ 频繁测试同一个项目
+- ✅ 磁盘空间充足（超过 100GB 可用）
+
+❌ **必须清理的情况**：
 - 切换分支后出现编译错误
 - 依赖更新后出现奇怪问题
-- 准备提交代码前
-
-❌ **不需要清理的情况**：
-- 正常开发中（增量编译会更快）
-- 频繁测试同一个项目
+- 磁盘空间不足（少于 20GB 可用）
 
 ---
 
@@ -105,9 +142,33 @@ npm ci  # 重新安装依赖
 ## CI/CD 说明
 
 本项目已配置 GitHub Actions CI/CD：
-- 所有平台的构建都在云端完成
-- 本地不需要保留构建产物
-- 推荐定期运行 `./scripts/clean-build.sh`
+- 所有平台的 **release 构建**都在云端完成
+- 本地只需要运行 **dev 模式**测试（cargo run / npm run tauri dev）
+- 本地不会生成 release 构建，节省 5-7 GB 空间
+
+**推荐工作流程**：
+```bash
+# 1. 修改代码
+vim crates/dglab-core/src/device/mod.rs
+
+# 2. 本地测试（dev 模式）
+cargo run --bin dglab -- scan
+# 或
+cd apps/dglab-gui-tauri && npm run tauri dev
+
+# 3. 提交并推送
+git add .
+git commit -m "feat: add new feature"
+git push
+
+# 4. GitHub Actions 自动构建 release 版本（云端）
+# 无需本地构建 release
+```
+
+**清理策略**：
+- **日常**：保留 target/debug/（5-8 GB），不需要清理
+- **偶尔**：运行 `./scripts/clean-light.sh` 清理临时文件
+- **磁盘不足**：运行 `./scripts/clean-build.sh` 完全清理
 
 ---
 
@@ -130,13 +191,42 @@ df -h .
 
 ---
 
-## 最佳实践
+## 最佳实践（Dev 模式开发）
 
-1. **日常开发**：不需要清理，保持增量编译缓存
-2. **切换分支前**：运行 `cargo clean` 避免编译缓存问题
-3. **每周或磁盘不足时**：运行 `./scripts/clean-build.sh`
-4. **依赖有问题时**：运行 `./scripts/clean.sh` 完全重置
-5. **提交代码前**：确保 `.gitignore` 正确，不要提交 `target/`
+### 日常开发流程
+
+1. **正常开发**：保持 target/debug/（5-8 GB）不清理
+   - 增量编译快速（10-30 秒）
+   - 磁盘占用稳定，不会持续增长
+
+2. **遇到编译问题**：运行 `./scripts/clean-build.sh` 重新构建
+
+3. **磁盘空间不足**：运行 `./scripts/clean.sh` 完全清理
+
+4. **切换分支**：如果遇到奇怪的编译错误，运行 `cargo clean`
+
+### 空间占用预期
+
+| 场景 | target/ 大小 | 说明 |
+|------|-------------|------|
+| 首次克隆项目 | 0 GB | 干净状态 |
+| 第一次 cargo run | 5-8 GB | 完整 debug 构建 |
+| 修改代码后 | 5-8 GB | 增量编译，大小不变 |
+| 运行 release 构建 | 10-15 GB | **不推荐本地做** |
+
+### 什么时候 target/ 会增长？
+
+❌ **不会增长的情况**（大小稳定在 5-8 GB）：
+- 正常开发和测试
+- 修改 Rust 代码后增量编译
+- 修改前端代码（不涉及 Rust）
+
+✅ **会增长的情况**：
+- 运行 `cargo build --release`（+1-2 GB）
+- 运行 `npm run tauri build`（+1-2 GB）
+- 切换多个不同的构建配置
+
+**解决方案**：避免本地运行 release 构建，使用 GitHub Actions。
 
 ---
 
