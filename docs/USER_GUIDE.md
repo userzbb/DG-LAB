@@ -239,9 +239,55 @@ dglab connect
 
 # 直接连接指定设备
 dglab connect --id "DG-LAB-XXXX"
+```
 
-# WiFi 连接
-dglab connect --wifi --address "ws://192.168.1.100:8080"
+### BLE-WebSocket 桥接模式
+
+桥接模式允许你的电脑替代官方 DG-LAB APP，通过蓝牙连接设备并同时连接 WebSocket 服务器。
+
+```bash
+# 使用官方服务器
+dglab bridge --device 47L121000
+
+# 使用自定义服务器
+dglab bridge --device 47L121000 --ws-url ws://你的服务器地址:端口
+
+# 使用本机测试服务器
+dglab bridge --device 47L121000 --ws-url ws://localhost:8765
+```
+
+### WiFi CLI 模式
+
+WiFi 模式让你的电脑作为 WiFi 设备，显示二维码让手机 APP 扫描绑定。
+
+```bash
+# 使用官方服务器
+dglab wifi connect
+
+# 使用自定义服务器
+dglab wifi connect --server ws://你的服务器地址:端口
+
+# 使用本机测试服务器
+dglab wifi connect --server ws://localhost:8765
+```
+
+### 本机测试服务器
+
+如果官方服务器连接超时，可以使用项目提供的本地测试服务器：
+
+1. **启动本地服务器（终端 1）:
+```bash
+pip install websockets
+python test-local-server.py
+```
+
+2. **连接本地服务器（终端 2）:
+```bash
+# WiFi 模式
+dglab wifi connect --server ws://localhost:8765
+
+# 或桥接模式
+dglab bridge --device 47L121000 --ws-url ws://localhost:8765
 ```
 
 ### 功率控制
@@ -404,9 +450,54 @@ dglab tui
 - ✓ 尝试先停止再重新启动
 - ✓ 查看是否有错误 Toast 通知
 
-### 4. WiFi 连接问题
+### 4. WebSocket 连接超时或自定义服务器配置
 
-**问题**: 无法通过 WiFi 连接设备
+**问题 1: 官方服务器连接超时（错误 10060）
+
+**原因: 无法连接到官方服务器 `wss://ws.dungeon-lab.cn`
+
+**解决方案**:
+
+**方案一: 使用自定义服务器**
+```bash
+# 桥接模式:
+dglab bridge --device 47L121000 --ws-url ws://你的服务器地址:端口
+
+# WiFi CLI 模式:
+dglab wifi connect --server ws://你的服务器地址:端口
+```
+
+**方案二: 使用本地测试服务器（推荐用于测试）
+
+项目提供了一个本地测试服务器脚本 `test-local-server.py`：
+
+1. **启动本地服务器**:
+```bash
+# 安装依赖
+pip install websockets
+
+# 启动服务器（终端 1）
+python test-local-server.py
+```
+
+服务器会监听 `ws://localhost:8765
+
+2. **连接本地服务器（终端 2）:
+```bash
+# 桥接模式:
+dglab bridge --device 47L121000 --ws-url ws://localhost:8765
+
+# WiFi CLI 模式:
+dglab wifi connect --server ws://localhost:8765
+```
+
+**本地测试服务器会:
+- ✓ 接受你的连接
+- ✓ 发送 clientId
+- ✓ 模拟 5 秒后自动绑定成功
+- ✓ 响应心跳
+
+**问题 2: WiFi 连接问题**
 
 **解决方案**:
 - ✓ 确认设备固件支持 WiFi 功能
