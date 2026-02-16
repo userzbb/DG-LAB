@@ -7,6 +7,7 @@ use dglab_core::preset::PresetManager;
 use dglab_core::session::SessionManager;
 use dglab_protocol::ble::BleManager;
 
+pub mod bridge;
 pub mod connect;
 pub mod control;
 pub mod preset;
@@ -14,6 +15,7 @@ pub mod scan;
 pub mod script;
 pub mod wifi;
 
+pub use bridge::BridgeArgs;
 pub use connect::ConnectArgs;
 pub use control::ControlArgs;
 pub use preset::PresetArgs;
@@ -90,6 +92,13 @@ impl DglabCli {
     /// WiFi 命令
     pub async fn wifi(&mut self, args: WifiArgs) -> Result<()> {
         wifi::execute(self, args).await
+    }
+
+    /// 桥接模式
+    pub async fn bridge(&mut self, args: BridgeArgs) -> Result<()> {
+        // 延迟初始化 BLE
+        self.get_or_init_ble().await?;
+        bridge::execute(self, args).await
     }
 
     /// 获取 BLE 管理器

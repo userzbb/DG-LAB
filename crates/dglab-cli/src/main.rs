@@ -39,6 +39,8 @@ enum Commands {
     Script(commands::ScriptArgs),
     /// WiFi 连接
     Wifi(commands::WifiArgs),
+    /// 桥接模式（BLE + WebSocket）
+    Bridge(commands::BridgeArgs),
     /// 启动 TUI 界面
     Tui,
 }
@@ -72,6 +74,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Preset(args) => app.preset(args).await?,
         Commands::Script(args) => app.script(args).await?,
         Commands::Wifi(args) => app.wifi(args).await?,
+        Commands::Bridge(args) => app.bridge(args).await?,
         Commands::Tui => app.run_tui().await?,
     }
 

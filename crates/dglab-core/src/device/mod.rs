@@ -2,6 +2,7 @@
 //!
 //! 提供设备抽象 trait 和具体实现。
 
+pub mod bridge;
 pub mod coyote;
 pub mod traits;
 
@@ -9,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use tracing::debug;
 
+pub use bridge::BleWsBridgeDevice;
 pub use coyote::{CoyoteDevice, WsCoyoteDevice};
 pub use traits::{Device, DeviceConfig};
 
