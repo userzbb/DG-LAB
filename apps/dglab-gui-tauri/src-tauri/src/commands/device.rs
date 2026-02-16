@@ -31,12 +31,20 @@ pub async fn scan_ble_devices(timeout_secs: Option<u64>) -> Result<Vec<ScannedDe
 
     let manager = BleManager::new()
         .await
-        .map_err(|e| format!("Failed to create BLE manager: {}", e))?;
+        .map_err(|e| {
+            let error_msg = format!("创建蓝牙管理器失败: {}. 请检查蓝牙是否已启用", e);
+            tracing::error!("{}", error_msg);
+            error_msg
+        })?;
 
     manager
         .start_scan()
         .await
-        .map_err(|e| format!("Failed to start scan: {}", e))?;
+        .map_err(|e| {
+            let error_msg = format!("启动扫描失败: {}. 请检查蓝牙权限", e);
+            tracing::error!("{}", error_msg);
+            error_msg
+        })?;
 
     // Wait for scan duration
     let timeout = std::time::Duration::from_secs(timeout_secs.unwrap_or(10));
@@ -45,12 +53,20 @@ pub async fn scan_ble_devices(timeout_secs: Option<u64>) -> Result<Vec<ScannedDe
     let results = manager
         .get_scan_results()
         .await
-        .map_err(|e| format!("Failed to get scan results: {}", e))?;
+        .map_err(|e| {
+            let error_msg = format!("获取扫描结果失败: {}", e);
+            tracing::error!("{}", error_msg);
+            error_msg
+        })?;
 
     manager
         .stop_scan()
         .await
-        .map_err(|e| format!("Failed to stop scan: {}", e))?;
+        .map_err(|e| {
+            let error_msg = format!("停止扫描失败: {}", e);
+            tracing::error!("{}", error_msg);
+            error_msg
+        })?;
 
     let scanned: Vec<ScannedDevice> = results
         .into_iter()
@@ -81,12 +97,26 @@ pub async fn connect_ble_device(
     // 创建 BLE manager 并连接设备
     let ble_manager = BleManager::new()
         .await
-        .map_err(|e| format!("Failed to create BLE manager: {}", e))?;
+        .map_err(|e| {
+            let error_msg = format!("创建蓝牙管理器失败: {}", e);
+            tracing::error!("{}", error_msg);
+            error_msg
+        })?;
 
     let ble_device = ble_manager
         .connect(&device_id)
         .await
-        .map_err(|e| format!("Failed to connect to BLE device: {}", e))?;
+        .map_err(|e| {
+            let error_msg = format!("连接蓝牙设备失败: {}. 请确保设备已开启且在范围内", e);
+            tracing::error!("{}", error_msg);
+            error_msg
+        })?;
+
+    // 保存 BLE manager，防止连接被丢弃
+    {
+        let mut managers = state.ble_managers.write().await;
+        managers.insert(device_id.clone(), ble_manager);
+    }
 
     // 创建 CoyoteDevice 并设置协议设备
     let mut coyote = CoyoteDevice::new(device_id.clone(), device_name.clone());
@@ -94,7 +124,11 @@ pub async fn connect_ble_device(
     coyote
         .connect()
         .await
-        .map_err(|e| format!("Failed to connect device: {}", e))?;
+        .map_err(|e| {
+            let error_msg = format!("设备连接失败: {}. 请重试或重启设备", e);
+            tracing::error!("{}", error_msg);
+            error_msg
+        })?;
 
     let info = coyote.info();
 
@@ -104,7 +138,11 @@ pub async fn connect_ble_device(
         manager
             .add_device(Box::new(coyote))
             .await
-            .map_err(|e| format!("Failed to add device to session: {}", e))?;
+            .map_err(|e| {
+                let error_msg = format!("添加设备到会话失败: {}", e);
+                tracing::error!("{}", error_msg);
+                error_msg
+            })?;
     }
 
     // 发送状态变更事件
@@ -168,12 +206,22 @@ pub async fn disconnect_device(
     let device = manager
         .get_device(&device_id)
         .await
-        .ok_or_else(|| format!("Device not found: {}", device_id))?;
+        .ok_or_else(|| format!("设备未找到: {}", device_id))?;
 
     let mut dev = device.write().await;
     dev.disconnect()
         .await
-        .map_err(|e| format!("Disconnect failed: {}", e))?;
+        .map_err(|e| {
+            let error_msg = format!("断开连接失败: {}", e);
+            tracing::error!("{}", error_msg);
+            error_msg
+        })?;
+
+    // 清理 BLE manager
+    {
+        let mut managers = state.ble_managers.write().await;
+        managers.remove(&device_id);
+    }
 
     // 发送状态变更事件
     let _ = app.emit(
