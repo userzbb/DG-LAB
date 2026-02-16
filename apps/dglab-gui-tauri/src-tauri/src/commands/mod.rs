@@ -3,3 +3,4 @@
 pub mod device;
 pub mod power;
 pub mod session;
+pub mod wifi;

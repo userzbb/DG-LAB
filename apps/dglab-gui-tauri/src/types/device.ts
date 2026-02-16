@@ -75,3 +75,19 @@ export interface ScannedDevice {
   /** 设备地址 */
   address: string;
 }
+
+/** WiFi 连接请求 */
+export interface WifiConnectRequest {
+  /** 自定义服务器地址（可选） */
+  server_url?: string;
+}
+
+/** WiFi 连接响应 */
+export interface WifiConnectResponse {
+  /** 设备 ID */
+  device_id: string;
+  /** 设备名称 */
+  device_name: string;
+  /** 二维码 URL */
+  qr_url: string;
+}

@@ -316,7 +316,7 @@ dglab.exe --help
 ### ⚠️ 已知限制
 
 1. **BLE 连接**: Linux 用户可能需要配置 BlueZ 权限
-2. **WiFi 功能**: WiFi 协议已实现但未在 GUI 中暴露
+2. **WiFi 功能**: WiFi 协议已在 GUI 中完全支持 (v0.1.2+)
 3. **平台支持**: Android 版本正在开发中 (Phase 4)
 
 ### 🐛 问题反馈

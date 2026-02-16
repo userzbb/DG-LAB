@@ -45,6 +45,10 @@ pub fn run() {
             // Session commands
             commands::session::get_session_info,
             commands::session::list_devices,
+            // WiFi commands
+            commands::wifi::wifi_connect,
+            commands::wifi::wifi_check_binding,
+            commands::wifi::wifi_cancel,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

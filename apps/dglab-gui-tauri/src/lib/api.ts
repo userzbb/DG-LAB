@@ -8,6 +8,8 @@ import type {
   DeviceState,
   ScannedDevice,
   SessionInfo,
+  WifiConnectRequest,
+  WifiConnectResponse,
 } from "../types";
 
 /** 扫描 BLE 设备 */
@@ -70,4 +72,21 @@ export async function getSessionInfo(): Promise<SessionInfo> {
 /** 列出所有设备 */
 export async function listDevices(): Promise<string[]> {
   return await invoke<string[]>("list_devices");
+}
+
+// ========== WiFi API ==========
+
+/** 连接 WiFi 设备 */
+export async function wifiConnect(request: WifiConnectRequest): Promise<WifiConnectResponse> {
+  return await invoke<WifiConnectResponse>("wifi_connect", { request });
+}
+
+/** 检查 WiFi 设备绑定状态 */
+export async function wifiCheckBinding(deviceId: string): Promise<boolean> {
+  return await invoke<boolean>("wifi_check_binding", { deviceId });
+}
+
+/** 取消 WiFi 连接 */
+export async function wifiCancel(deviceId: string): Promise<void> {
+  return await invoke<void>("wifi_cancel", { deviceId });
 }

@@ -19,6 +19,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.3] - TBD
+
+### ✨ 新增功能
+
+- **GUI**: WiFi 连接功能现已在 Tauri GUI 中完全支持
+  - 添加 WiFi 连接页面，支持官方服务器和自定义服务器
+  - 实现二维码生成和显示，方便使用 DG-LAB APP 扫码绑定
+  - 自动轮询检测设备绑定状态
+  - 支持复制连接 URL 到剪贴板
+  - 添加连接取消功能
+- **UI 组件**: 添加 Tabs 组件，用于 BLE/WiFi 切换
+- **类型定义**: 完善 WiFi 连接相关的 TypeScript 类型定义
+
+### 🔧 修复
+
+- 修复 TypeScript 类型错误 (NodeJS.Timeout → number)
+- 添加缺失的 @radix-ui/react-tabs 依赖
+
+---
+
 ## [0.1.2] - 2026-02-16
 
 ### 🔧 修复
@@ -184,7 +204,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - 当前支持 0-200 范围,设备硬件实际支持范围取决于固件版本
 
 3. **WiFi 连接**
-   - WiFi WebSocket 协议已实现但未在 GUI 中暴露
+   - ✅ WiFi WebSocket 协议已在 GUI 中完全支持
+   - 支持二维码扫描快速配对
    - 需要设备固件支持 WiFi 功能
 
 4. **预设同步**
