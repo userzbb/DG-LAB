@@ -26,14 +26,19 @@ pub struct ScannedDevice {
 
 /// 扫描 BLE 设备
 #[tauri::command]
-pub async fn scan_ble_devices(timeout_secs: Option<u64>) -> Result<Vec<ScannedDevice>, String> {
+pub async fn scan_ble_devices(
+    state: State<'_, AppState>,
+    timeout_secs: Option<u64>,
+) -> Result<Vec<ScannedDevice>, String> {
+    use std::sync::Arc;
+
     info!("Starting BLE device scan, timeout: {:?}", timeout_secs);
 
-    let manager = BleManager::new().await.map_err(|e| {
+    let manager = Arc::new(BleManager::new().await.map_err(|e| {
         let error_msg = format!("创建蓝牙管理器失败: {}. 请检查蓝牙是否已启用", e);
         tracing::error!("{}", error_msg);
         error_msg
-    })?;
+    })?);
 
     manager.start_scan().await.map_err(|e| {
         let error_msg = format!("启动扫描失败: {}. 请检查蓝牙权限", e);
@@ -56,6 +61,12 @@ pub async fn scan_ble_devices(timeout_secs: Option<u64>) -> Result<Vec<ScannedDe
         tracing::error!("{}", error_msg);
         error_msg
     })?;
+
+    // 保存扫描 manager 到临时存储（使用特殊键 "scan_manager"）
+    {
+        let mut managers = state.ble_managers.write().await;
+        managers.insert("scan_manager".to_string(), manager.clone());
+    }
 
     let scanned: Vec<ScannedDevice> = results
         .into_iter()
@@ -84,12 +95,48 @@ pub async fn connect_ble_device(
 
     info!("Connecting to BLE device: {} ({})", device_name, device_id);
 
-    // 创建 BLE manager
-    let ble_manager = Arc::new(BleManager::new().await.map_err(|e| {
-        let error_msg = format!("创建蓝牙管理器失败: {}. 请检查蓝牙是否已启用", e);
-        tracing::error!("{}", error_msg);
-        error_msg
-    })?);
+    // 获取扫描时保存的 manager
+    let scan_manager = {
+        let managers = state.ble_managers.read().await;
+        managers.get("scan_manager").cloned()
+    };
+
+    let ble_manager: Arc<BleManager>;
+
+    if let Some(mgr) = scan_manager {
+        info!("Using manager from previous scan");
+        ble_manager = mgr;
+    } else {
+        info!("Creating new BLE manager");
+        ble_manager = Arc::new(BleManager::new().await.map_err(|e| {
+            let error_msg = format!("创建蓝牙管理器失败: {}. 请检查蓝牙是否已启用", e);
+            tracing::error!("{}", error_msg);
+            error_msg
+        })?);
+
+        // 如果没有扫描 manager，我们需要快速扫描一下找到设备
+        info!("Starting quick scan to find device...");
+        ble_manager.start_scan().await.map_err(|e| {
+            let error_msg = format!("启动扫描失败: {}", e);
+            tracing::error!("{}", error_msg);
+            error_msg
+        })?;
+
+        // 快速扫描 2 秒
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+        let scan_results = ble_manager.get_scan_results().await.map_err(|e| {
+            let error_msg = format!("获取扫描结果失败: {}", e);
+            tracing::error!("{}", error_msg);
+            error_msg
+        })?;
+
+        let _ = ble_manager.stop_scan().await.map_err(|e| {
+            tracing::warn!("Failed to stop scan: {}", e);
+        });
+
+        info!("Found {} devices in quick scan", scan_results.len());
+    }
 
     // 连接到 BLE 设备
     let ble_device = ble_manager.connect(&device_id).await.map_err(|e| {
@@ -121,6 +168,9 @@ pub async fn connect_ble_device(
     // 保存 BLE manager，防止连接被丢弃
     {
         let mut managers = state.ble_managers.write().await;
+        // 移除 scan_manager（不再需要）
+        managers.remove("scan_manager");
+        // 保存设备的 manager
         managers.insert(device_id.clone(), ble_manager.clone());
     }
 
